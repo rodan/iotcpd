@@ -1,0 +1,31 @@
+
+1. description
+
+a server that binds itself to a TCP port, listens for incoming squidguard statements and sends the request to one of num_daemons squidguards
+
+
+          --------------------      ---- squidguard
+  IO     |                    |    |
+---------+  url_check server  +----+---- squidguard
+  TCP    |                    |    |
+          --------------------       ...
+                                   |
+                                    ---- squidguard
+
+2. dependencies
+
+ - epoll aware OS (Linux >=2.6, FreeBSD)
+ - >=net-proxy/squidguard-1.5_beta-r1
+ - net-analyzer/netcat6 (from http://netcat6.sourceforge.net/) for testing. net-analyzer/netcat from http://nc110.sourceforge.net/ will NOT work.
+
+
+3. how to compile/test
+
+ $ make && ./url_checkd --num-daemons 8
+
+  # in a different terminal
+ $ bash test_adblock.sh a
+ $ bash test_adblock.sh b
+
+
+
