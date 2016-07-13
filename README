@@ -26,6 +26,7 @@ a server that binds itself to a TCP port, listens for incoming squidguard statem
   # in a different terminal
  $ bash test_adblock.sh a
  $ bash test_adblock.sh b
+ $ bash test_adblock.sh c
 
 
 
