@@ -38,6 +38,32 @@ example of how this fits in with having multiple squidguard daemons that can tal
  $ bash test_adblock.sh b
  $ bash test_adblock.sh c
 
+ sending USR1 and USR2 signals will provide with detailed statistics on the innerworkings of the redirector service:
+
+ $ kill -USR1 `pidof iotcpd`
+
+--- statistics ---- >8 -------
+queries total      3000
+queries replied    3000
+queries failed     0
+queries delayed    1927
+queries 0-100      2893
+queries 100-250    100
+queries 250-500    7
+queries 500-750    0
+queries 750-1000   0
+queries 1000-      0
+daemon spawns      8
+daemon deaths      0
+daemon respawns    0
+daemon S_AVAILABLE 8
+daemon S_BUSY      0
+daemon S_DEAD      0
+daemon S_RESTART   0
+uptime   836
+ --- statistics ---- 8< -------
+
+ queries x-y represent a histogram of the replies based on the time their processing took (in miliseconds).
 
 AUTHORS
     Petre Rodan <petre.rodan@subdimension.ro>
