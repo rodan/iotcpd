@@ -1,25 +1,29 @@
 
 1. description
 
-a server that binds itself to a TCP port, listens for incoming squidguard statements and sends the request to one of num_daemons squidguards
+a generic server that binds itself to an ipv4/ipv6 TCP port, listens for incoming statements and sends them to a number of identical non-network capable daemons that can only interract via STDIN/STDOUT. the reply got from the daemon's STDOUT is sent back via TCP and the connection is ended.
+
+basically an inetd/xinetd/tcpserver on crack.
+
+example of how this fits in with having multiple squidguard daemons that can talk via TCP:
+
+          ---------------------      ---- squidguard
+  IO     |                     |    |
+---------+  url_checkd server  +----+---- squidguard
+  TCP    |                     |    |
+          ---------------------      ...
+                                    |
+                                     ---- squidguard
 
 
-          --------------------      ---- squidguard
-  IO     |                    |    |
----------+  url_check server  +----+---- squidguard
-  TCP    |                    |    |
-          --------------------       ...
-                                   |
-                                    ---- squidguard
-
-2. dependencies
+dependencies
 
  - epoll aware OS (Linux >=2.6, FreeBSD)
  - >=net-proxy/squidguard-1.5_beta-r1
- - net-analyzer/netcat6 (from http://netcat6.sourceforge.net/) for testing. net-analyzer/netcat from http://nc110.sourceforge.net/ will NOT work.
+ - net-analyzer/netcat6 (from http://netcat6.sourceforge.net/) for testing
 
 
-3. how to compile/test
+2. how to compile/test
 
  $ make && ./url_checkd --num-daemons 8
 
