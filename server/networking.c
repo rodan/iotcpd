@@ -110,12 +110,12 @@ int io_handler(const int fd)
 #endif
 
     // select a daemon that is available
-    st.total_queries++;
+    st.queries_total++;
     update_status(&avail_daemon[0], &j);
 
     if (j == 0) {
         // no available daemons
-        st.delayed_queries++;
+        st.queries_delayed++;
 
         //signal_handler(SIGCHLD);
 
@@ -137,7 +137,7 @@ int io_handler(const int fd)
         if (all_busy) {
             s = write(fd, "ERR\n", 4);
             close(fd);
-            st.failed_queries++;
+            st.queries_failed++;
             fprintf(stderr, "dropping connection. avail/busy/dead daemons: %d/%d/%d\n", st.d_avail, st.d_busy, st.d_dead);
             return EXIT_FAILURE;
         } else {
@@ -159,7 +159,7 @@ int io_handler(const int fd)
     } else if (pid > 0) {
         // parent
         d[sel_daemon].client_pid = pid;
-        st.replied_queries++;
+        st.queries_replied++;
         //printf("pid is %d\n", pid);
     } else if (pid == 0) {
         // child

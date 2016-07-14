@@ -15,55 +15,62 @@
 #include "networking.h"
 #include "daemon_glue.h"
 
-void signal_handler(const int signo)
+void signal_handler(int sig, siginfo_t * si, void *context)
 {
-    pid_t pid;
     int status;
+    pid_t pid;
     int i;
     int found = 0;
+    sigset_t x;
 
-    if (signo == SIGCHLD) {
-        //pid = wait(NULL);
-        while (1) {
-            pid = waitpid(-1, &status, WNOHANG);
-            printf("sigchld %d\n", pid);
-            if (pid > 0) {
-                for (i = 0; i < num_daemons; i++) {
-                    if (d[i].client_pid == pid) {
-                        found = 1;
-                        // close connection with client
-                        close(d[i].client_fd);
+
+    if (sig == SIGCHLD) {
+        sigemptyset (&x);
+        sigaddset(&x, SIGCHLD);
+        sigprocmask(SIG_BLOCK, &x, NULL);
+
+        if (si->si_code == CLD_EXITED || si->si_code == CLD_KILLED) {
+            while (1) {
+                pid = waitpid(-1, &status, WNOHANG);
+                printf("sigchld %d\n", pid);
+                if (pid > 0) {
+                    for (i = 0; i < num_daemons; i++) {
+                        if (d[i].client_pid == pid) {
+                            found = 1;
+                            // close connection with client
+                            close(d[i].client_fd);
 #ifdef CONFIG_DEBUG
-                        printf("pid %d exited, closed fd %d.\n", pid, d[i].client_fd);
+                            printf("pid %d exited, closed fd %d.\n", pid, d[i].client_fd);
 #endif
-                        d[i].client_fd = -1;
-                        d[i].client_pid = -1;
-                        if (d[i].status == S_BUSY) {
-                            d[i].status = S_AVAILABLE;
-                            all_busy = 0;
+                            d[i].client_fd = -1;
+                            d[i].client_pid = -1;
+                            if (d[i].status == S_BUSY) {
+                                d[i].status = S_AVAILABLE;
+                                all_busy = 0;
+                            }
+                            d[i].time = 0;
+                        } else if (d[i].daemon_pid == pid) {
+                            found = 1;
+                            fprintf(stderr, "daemon d[%d] has died\n", i);
+                            st.daemon_deaths++;
+                            d[i].daemon_pid = -1;
+                            d[i].status = S_DEAD;
+                            if (d[i].client_pid != -1) {
+                                kill(d[i].client_pid, SIGKILL);
+                            }
                         }
-                        d[i].time = 0;
-                        return;
-                    } else if (d[i].daemon_pid == pid) {
-                        found = 1;
-                        fprintf(stderr, "daemon d[%d] has died\n", i);
-                        st.daemon_deaths++;
-                        d[i].daemon_pid = -1;
-                        d[i].status = S_DEAD;
-                        if (d[i].client_pid != -1) {
-                            kill(d[i].client_pid, SIGKILL);
-                        }
-                        return;
                     }
+                } else if (pid == 0) {
+                    sigprocmask(SIG_UNBLOCK, &x, NULL);
+                    return;
                 }
-            } else if (pid == 0) {
-                return;
             }
         }
         if (!found) {
             fprintf(stderr, "unknown child\n");
         }
-    } else if (signo == SIGINT) {
+        sigprocmask(SIG_UNBLOCK, &x, NULL);
+    } else if (sig == SIGINT) {
         /*
            for (i=0; i<num_daemons; i++) {
            if (d[0].client_pid != -1) {
@@ -76,53 +83,31 @@ void signal_handler(const int signo)
          */
         //free(daemon_array);
         //free(d);
-    } else if (signo == SIGUSR1) {
+    } else if (sig == SIGUSR1) {
         update_status(NULL, NULL);
-        printf("total queries   %d\n", st.total_queries);
-        printf("replied queries %d\n", st.replied_queries);
-        printf("failed queries  %d\n", st.failed_queries);
-        printf("delayed queries %d\n", st.delayed_queries);
-        printf("daemon spawns   %d\n", st.spawns);
-        printf("daemon deaths   %d\n", st.daemon_deaths);
-        printf("daemon respawns %d\n", st.daemon_respawns);
-        printf("daemon S_AVAILABLE %d\n", st.d_avail);
-        printf("daemon S_BUSY   %d\n", st.d_busy);
-        printf("daemon S_DEAD   %d\n", st.d_dead);
-    }
-}
-
-// avail_array is an array MAX_DAEMONS long that contains 
-//              daemon IDs that are non-busy and non-dead
-// count is the number of available daemons
-void update_status(int *avail_array, int *count)
-{
-    int i;
-
-    if (count != NULL) {
-        *count = 0;
-    }
-    st.d_avail = 0;
-    st.d_busy = 0;
-    st.d_dead = 0;
-
-    for (i = 0; i < num_daemons; i++) {
-        if (d[i].status == S_AVAILABLE) {
-            if ((count != NULL) && (avail_array != NULL)) {
-                avail_array[*count] = i;
-                *count = *count + 1;
-            }
-            st.d_avail++;
-        } else if (d[i].status == S_BUSY) {
-            st.d_busy++;
-        } else if (d[i].status == S_DEAD) {
-            st.d_dead++;
-            st.daemon_respawns++;
-            spawn(&d[i]);
+        fprintf(stdout, "queries total   %lu\n", st.queries_total);
+        fprintf(stdout, "queries replied %lu\n", st.queries_replied);
+        fprintf(stdout, "queries failed  %lu\n", st.queries_failed);
+        fprintf(stdout, "queries delayed %lu\n", st.queries_delayed);
+        fprintf(stdout, "daemon spawns   %lu\n", st.daemon_spawns);
+        fprintf(stdout, "daemon deaths   %lu\n", st.daemon_deaths);
+        fprintf(stdout, "daemon respawns %lu\n", st.daemon_respawns);
+        fprintf(stdout, "daemon S_AVAILABLE %d\n", st.d_avail);
+        fprintf(stdout, "daemon S_BUSY   %d\n", st.d_busy);
+        fprintf(stdout, "daemon S_DEAD   %d\n", st.d_dead);
+        fprintf(stdout, "uptime   %lu\n", time(NULL) - st.started);
+    } else if (sig == SIGUSR2) {
+        for (i = 0; i < num_daemons; i++) {
+            fprintf(stdout, "d[%d].status = %d\n",i, d[i].status);
+            fprintf(stdout, "d[%d].producer_pipe_fd[PIPE_END_WRITE] = %d\n", i,
+                d[i].producer_pipe_fd[PIPE_END_WRITE]);
+            fprintf(stdout, "d[%d].consumer_pipe_fd[PIPE_END_READ] = %d\n", i,
+                d[i].consumer_pipe_fd[PIPE_END_READ]);
+            fprintf(stdout, "d[%d].daemon_pid = %d\n",i, d[i].daemon_pid);
+            fprintf(stdout, "d[%d].client_pid = %d\n",i, d[i].client_pid);
+            fprintf(stdout, "d[%d].client_fd = %d\n",i, d[i].client_fd);
+            fprintf(stdout, "\n");
         }
-    }
-
-    if (st.d_busy == num_daemons) {
-        all_busy = 1;
     }
 }
 
@@ -215,26 +200,24 @@ int main(int argc, char **argv)
     char *buf;
     char *p;
     int elem = 0;
+    struct sigaction sa;
 
     setvbuf(stdout, NULL, _IOLBF, 0);
     memset(&st, 0, sizeof(st));
 
-    //if (signal(SIGINT, signal_handler) == SIG_ERR) {
-    //    fprintf(stderr, "\ncan't catch SIGINT\n");
-    //}
-    if (signal(SIGUSR1, signal_handler) == SIG_ERR) {
-        fprintf(stderr, "\ncan't catch SIGUSR1\n");
-    }
-    if (signal(SIGCHLD, signal_handler) == SIG_ERR) {
-        fprintf(stderr, "\ncan't catch SIGCHLD\n");
-        return EXIT_FAILURE;
-    }
+    sa.sa_flags = SA_SIGINFO;
+    sa.sa_sigaction = signal_handler;
+    sigaction(SIGCHLD, &sa, NULL);
+    //sigaction(SIGINT, &sa, NULL);
+    sigaction(SIGUSR1, &sa, NULL);
+    sigaction(SIGUSR2, &sa, NULL);
+
+    st.started = time(NULL);
 
     parse_options(argc, argv);
 
     buf = strdup(daemon_str);
     p = strtok(buf, " ");
-
     daemon_array = (char **)malloc(strlen(daemon_str) + 2 * sizeof(char));
     while (p) {
         daemon_array[elem] = p;

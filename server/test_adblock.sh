@@ -19,5 +19,7 @@ fi
 
 sleep 3
 killall -USR1 url_checkd
-ps axww | grep defunct | grep -Ev '(grep)|(nacl_helper)'
+killall -USR2 url_checkd
+ps axww | grep defunct | grep -Ev '(grep)|(nacl_helper)|(chrome)'
+ps axww | grep nc | grep -Ev '(grep)'
 

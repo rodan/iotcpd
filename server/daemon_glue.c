@@ -74,8 +74,44 @@ void *spawn(void *param)
     }
     if (d->daemon_pid > 0) {
         d->status = S_AVAILABLE;
-        st.spawns++;
+        st.daemon_spawns++;
     }
 
     return NULL;
 }
+
+// avail_array is an array MAX_DAEMONS long that contains 
+//              daemon IDs that are non-busy and non-dead
+// count is the number of available daemons
+void update_status(int *avail_array, int *count)
+{
+    int i;
+
+    if (count != NULL) {
+        *count = 0;
+    }
+    st.d_avail = 0;
+    st.d_busy = 0;
+    st.d_dead = 0;
+
+    for (i = 0; i < num_daemons; i++) {
+        if (d[i].status == S_AVAILABLE) {
+            if ((count != NULL) && (avail_array != NULL)) {
+                avail_array[*count] = i;
+                *count = *count + 1;
+            }
+            st.d_avail++;
+        } else if (d[i].status == S_BUSY) {
+            st.d_busy++;
+        } else if (d[i].status == S_DEAD) {
+            st.d_dead++;
+            st.daemon_respawns++;
+            spawn(&d[i]);
+        }
+    }
+
+    if (st.d_busy == num_daemons) {
+        all_busy = 1;
+    }
+}
+

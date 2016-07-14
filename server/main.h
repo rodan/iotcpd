@@ -21,7 +21,7 @@ char **daemon_array;
 
 ///////////////////////////////
 
-volatile int all_busy;
+volatile sig_atomic_t all_busy;
 
 typedef struct {
     int status;
@@ -36,21 +36,19 @@ typedef struct {
 daemon_t *d;
 
 typedef struct {
-    int spawns;
-    int daemon_deaths;
-    int daemon_respawns;
-    int total_queries;
-    int replied_queries;
-    int delayed_queries;
-    int failed_queries;
-    int d_avail;
-    int d_busy;
-    int d_dead;
+    unsigned long daemon_spawns;
+    unsigned long daemon_deaths;
+    unsigned long daemon_respawns;
+    unsigned long queries_total;
+    unsigned long queries_replied;
+    unsigned long queries_delayed;
+    unsigned long queries_failed;
+    unsigned int d_avail;
+    unsigned int d_busy;
+    unsigned int d_dead;
+    time_t started;
 } status_t;
 
 status_t st;
-
-void signal_handler(const int signo);
-void update_status(int *avail_array, int *count);
 
 #endif

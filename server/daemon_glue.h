@@ -12,9 +12,10 @@ typedef enum _PIPE_END {
     PIPE_END_WRITE = 1
 } PIPE_END;
 
-void *spawn(void *param);
-int producer_process(void *param);
-int consumer_process(void *param);
+//int producer_process(void *param);
+//int consumer_process(void *param);
 
+void *spawn(void *param);
+void update_status(int *avail_array, int *count);
 
 #endif
