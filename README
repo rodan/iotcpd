@@ -6,7 +6,7 @@ SYNOPSIS
     iotcpd --num-daemons 8 --daemon "squidGuard -c sg/adblock.conf" --ipv4 "10.20.30.40" --port "1234"
 
 DESCRIPTION
-    iotcpd is a generic STDIO to TCP redirector daemon. it can start multiple identical non-networking enabled daemons that only interact via stdin/stdout and query them based on requests received via TCP. the request is sent to the stdin of one of the daemons that is available, read from it's stdout, sent to the requester via TCP and then the connection is torn down.
+    iotcpd is a generic STDIO to TCP redirector daemon. it can start multiple identical non-networking enabled daemons that only interact via stdin/stdout and query them based on requests received via TCP. the request is sent to the stdin of one of the daemons that is available and the reply from its stdout is then sent to the requester via TCP. the connection is then torn down.
     basically an inetd/xinetd/tcpserver on crack.
     epoll API functions are used to handle incoming connections.
 
@@ -42,7 +42,7 @@ example of how this fits in with having multiple squidguard daemons that can tal
 
  $ kill -USR1 `pidof iotcpd`
 
---- statistics ---- >8 -------
+ --- statistics ---- >8 -------
 queries total      3000
 queries replied    3000
 queries failed     0
