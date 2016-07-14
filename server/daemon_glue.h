@@ -12,8 +12,17 @@ typedef enum _PIPE_END {
     PIPE_END_WRITE = 1
 } PIPE_END;
 
-//int producer_process(void *param);
-//int consumer_process(void *param);
+typedef struct {
+    int status;
+    int producer_pipe_fd[2];
+    int consumer_pipe_fd[2];
+    pid_t daemon_pid;
+    pid_t client_pid;
+    int client_fd;
+    timespec start;
+} daemon_t;
+
+daemon_t *d;
 
 void *spawn(void *param);
 void update_status(int *avail_array, int *count);

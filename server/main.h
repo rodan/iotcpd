@@ -24,18 +24,6 @@ char **daemon_array;
 volatile sig_atomic_t all_busy;
 
 typedef struct {
-    int status;
-    int producer_pipe_fd[2];
-    int consumer_pipe_fd[2];
-    pid_t daemon_pid;
-    pid_t client_pid;
-    int client_fd;
-    time_t time;
-} daemon_t;
-
-daemon_t *d;
-
-typedef struct {
     unsigned long daemon_spawns;
     unsigned long daemon_deaths;
     unsigned long daemon_respawns;
@@ -43,6 +31,12 @@ typedef struct {
     unsigned long queries_replied;
     unsigned long queries_delayed;
     unsigned long queries_failed;
+    unsigned long queries_0_250;
+    unsigned long queries_250_500;
+    unsigned long queries_500_750;
+    unsigned long queries_750_1000;
+    unsigned long queries_1000_1250;
+    unsigned long queries_1250;
     unsigned int d_avail;
     unsigned int d_busy;
     unsigned int d_dead;
