@@ -14,8 +14,8 @@ DESCRIPTION
 example of how this fits in with having multiple squidguard daemons that can talk via TCP:
 
           ---------------------      ---- squidguard
-  IO     |                     |    |
----------+  url_checkd server  +----+---- squidguard
+         |                     |    |
+---------+      iotcpd server  +----+---- squidguard
   TCP    |                     |    |
           ---------------------      ...
                                     |
