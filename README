@@ -40,7 +40,7 @@ example of how this fits in with having multiple squidguard daemons that can tal
 
 
 AUTHORS
-    Petre Rodan <petre.rodan@gmail.com>
+    Petre Rodan <petre.rodan@subdimension.ro>
     Cristian Sandu - pipe handling, a shoulder to cry on
     James White - patterns.sed used for converting adblock rules to squidguard expressions
 
