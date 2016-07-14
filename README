@@ -1,9 +1,15 @@
 
-1. description
+NAME
+    iotcpd - a stdio to tcp redirector daemon
 
-a generic server that binds itself to an ipv4/ipv6 TCP port, listens for incoming statements and sends them to a number of identical non-network capable daemons that can only interract via STDIN/STDOUT. the reply got from the daemon's STDOUT is sent back via TCP and the connection is ended.
+SYNOPSIS
+    iotcpd --num-daemons 8 --daemon "squidGuard -c sg/adblock.conf" --ipv4 "10.20.30.40" --port "1234"
 
-basically an inetd/xinetd/tcpserver on crack.
+DESCRIPTION
+    iotcpd is a generic STDIO to TCP redirector daemon. it can start multiple identical non-networking enabled daemons that only interact via stdin/stdout and query them based on requests received via TCP. the request is sent to the stdin of one of the daemons that is available, read from it's stdout, sent to the requester via TCP and then the connection is torn down.
+    basically an inetd/xinetd/tcpserver on crack.
+    epoll API functions are used to handle incoming connections.
+
 
 example of how this fits in with having multiple squidguard daemons that can talk via TCP:
 
@@ -15,17 +21,17 @@ example of how this fits in with having multiple squidguard daemons that can tal
                                     |
                                      ---- squidguard
 
+ $ ./iotcpd --num-daemons 8 --daemon "squidGuard -c sg/adblock.conf" --ipv4 "10.20.30.40" --port "1234"
 
-dependencies
-
+ dependencies
  - epoll aware OS (Linux >=2.6, FreeBSD)
  - >=net-proxy/squidguard-1.5_beta-r1
  - net-analyzer/netcat6 (from http://netcat6.sourceforge.net/) for testing
 
 
-2. how to compile/test
+ how to compile/test
 
- $ make && ./url_checkd --num-daemons 8
+ $ make && ./iotcpd --num-daemons 8
 
   # in a different terminal
  $ bash test_adblock.sh a
@@ -33,4 +39,11 @@ dependencies
  $ bash test_adblock.sh c
 
 
+AUTHORS
+    Petre Rodan <petre.rodan@gmail.com>
+    Cristian Sandu - pipe handling, a shoulder to cry on
+    James White - patterns.sed used for converting adblock rules to squidguard expressions
+
+COPYRIGHT
+    the bundled code is under a BSD license. do whatever you want with it.
 

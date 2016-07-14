@@ -19,7 +19,7 @@ typedef struct {
     pid_t daemon_pid;
     pid_t client_pid;
     int client_fd;
-    timespec start;
+    struct timespec start;
 } daemon_t;
 
 daemon_t *d;

@@ -70,6 +70,10 @@ int io_handler(const int fd)
     int avail_daemon[MAX_DAEMONS];
     int j;
     int timer;
+    struct timespec start;
+    struct sigaction sa;
+
+
 
     count = read(fd, buff_rx, (sizeof buff_rx) - 1);
     if (count == -1) {
@@ -95,20 +99,10 @@ int io_handler(const int fd)
         perror("write to stdout failed");
         return EXIT_FAILURE;
     }
-
-    for (i = 0; i < num_daemons; i++) {
-        fprintf(stdout, "d[%d].status = %d\n",i, d[i].status);
-        fprintf(stdout, "d[%d].producer_pipe_fd[PIPE_END_WRITE] = %d\n", i,
-                d[i].producer_pipe_fd[PIPE_END_WRITE]);
-        fprintf(stdout, "d[%d].consumer_pipe_fd[PIPE_END_READ] = %d\n", i,
-                d[i].consumer_pipe_fd[PIPE_END_READ]);
-        fprintf(stdout, "d[%d].daemon_pid = %d\n",i, d[i].daemon_pid);
-        fprintf(stdout, "d[%d].client_pid = %d\n",i, d[i].client_pid);
-        fprintf(stdout, "d[%d].client_fd = %d\n",i, d[i].client_fd);
-    }
     */
 #endif
 
+    clock_gettime(CLOCK_MONOTONIC_RAW, &start);
     // select a daemon that is available
     st.queries_total++;
     update_status(&avail_daemon[0], &j);
@@ -117,15 +111,8 @@ int io_handler(const int fd)
         // no available daemons
         st.queries_delayed++;
 
-        //signal_handler(SIGCHLD);
-
         timer = 0;
-        /*
-        while (all_busy) {
-            asm ("nop");
-        }
-        */
-        while (timer < 500) {
+        while (timer < 800) {
             usleep(1000);
             timer++;
             if (!all_busy) {
@@ -133,14 +120,15 @@ int io_handler(const int fd)
             }
         }
 
-        printf("timer %d, busy %d\n", timer, all_busy);
+        //printf("timer %d, busy %d\n", timer, all_busy);
         if (all_busy) {
+            st.queries_failed++;
             s = write(fd, "ERR\n", 4);
             close(fd);
-            st.queries_failed++;
             fprintf(stderr, "dropping connection. avail/busy/dead daemons: %d/%d/%d\n", st.d_avail, st.d_busy, st.d_dead);
             return EXIT_FAILURE;
         } else {
+            // at least one daemon is available, lets select one
             update_status(&avail_daemon[0], &j);
         }
     }
@@ -148,7 +136,8 @@ int io_handler(const int fd)
     sel_daemon = avail_daemon[rand() % j];
     d[sel_daemon].status = S_BUSY;
     d[sel_daemon].client_fd = fd;
-    d[sel_daemon].time = time(NULL);
+    d[sel_daemon].start.tv_sec = start.tv_sec;
+    d[sel_daemon].start.tv_nsec = start.tv_nsec;
 
     // fork and send string to one of the daemons
     pid = fork();
@@ -163,6 +152,12 @@ int io_handler(const int fd)
         //printf("pid is %d\n", pid);
     } else if (pid == 0) {
         // child
+
+        // disable the signal handler
+        //sa.sa_flags = SA_SIGINFO;
+        sa.sa_handler = SIG_IGN;
+        sigaction(SIGUSR1, &sa, NULL);
+        sigaction(SIGUSR2, &sa, NULL);
 
         bytes = write(d[sel_daemon].producer_pipe_fd[PIPE_END_WRITE], buff_rx, strlen(buff_rx));
         if (bytes == -1) {
@@ -270,7 +265,7 @@ void network_glue(void)
     while (1) {
         int n, i;
 
-        n = epoll_wait(efd, events, num_daemons, -1);
+        n = epoll_wait(efd, events, 1024, -1);
         for (i = 0; i < n; i++) {
             if ((events[i].events & EPOLLERR) ||
                 (events[i].events & EPOLLHUP) || (!(events[i].events & EPOLLIN))) {

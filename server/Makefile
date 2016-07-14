@@ -1,6 +1,6 @@
 
 SUBDIRS =
-PROJ = url_checkd
+PROJ = iotcpd
 
 ### Machine flags
 #
