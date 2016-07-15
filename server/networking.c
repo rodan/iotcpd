@@ -73,8 +73,6 @@ int io_handler(const int fd)
     struct timespec start;
     struct sigaction sa;
 
-
-
     count = read(fd, buff_rx, (sizeof buff_rx) - 1);
     if (count == -1) {
         // If errno == EAGAIN, that means we have read all
@@ -125,7 +123,7 @@ int io_handler(const int fd)
             st.queries_failed++;
             s = write(fd, "ERR\n", 4);
             close(fd);
-            fprintf(stderr, "dropping connection. avail/busy/dead daemons: %d/%d/%d\n", st.d_avail, st.d_busy, st.d_dead);
+            fprintf(stderr, "dropping connection. avail/busy/spawning/starting daemons: %d/%d/%d/%d\n", st.d_avail, st.d_busy, st.d_spawning, st.d_starting);
             return EXIT_FAILURE;
         } else {
             // at least one daemon is available, lets select one
@@ -139,6 +137,7 @@ int io_handler(const int fd)
     d[sel_daemon].start.tv_sec = start.tv_sec;
     d[sel_daemon].start.tv_nsec = start.tv_nsec;
 
+    asm( "nop" );
     // fork and send string to one of the daemons
     pid = fork();
 
@@ -149,15 +148,24 @@ int io_handler(const int fd)
         // parent
         d[sel_daemon].client_pid = pid;
         st.queries_replied++;
-        //printf("pid is %d\n", pid);
+#ifdef CONFIG_DEBUG
+        printf("pid %d forked\n", pid);
+#endif
     } else if (pid == 0) {
         // child
 
-        // disable the signal handler
-        //sa.sa_flags = SA_SIGINFO;
+        // remove signal handlers that were set in the parent
         sa.sa_handler = SIG_IGN;
+        sigaction(SIGCHLD, &sa, NULL);
+        sigaction(SIGALRM, &sa, NULL);
         sigaction(SIGUSR1, &sa, NULL);
         sigaction(SIGUSR2, &sa, NULL);
+        sigaction(SIGHUP, &sa, NULL);
+
+        // "stay awhile and listen"
+        // in case this child dies too soon the cleanup will not find the pid set by
+        // the parent a few lines above
+        usleep(1000);
 
         bytes = write(d[sel_daemon].producer_pipe_fd[PIPE_END_WRITE], buff_rx, strlen(buff_rx));
         if (bytes == -1) {
@@ -185,7 +193,7 @@ int io_handler(const int fd)
         }
 
 #ifdef CONFIG_DEBUG
-        printf("sent data to fd %d from d[%d]. %d daemons were busy\n", fd, sel_daemon, st.d_busy);
+        printf("d[%d] sent %lub to fd %d. %d/%d busy\n", sel_daemon, bytes, fd, st.d_busy, num_daemons);
 #endif
         _exit(0);
     }
@@ -265,7 +273,7 @@ void network_glue(void)
     while (1) {
         int n, i;
 
-        n = epoll_wait(efd, events, 1024, -1);
+        n = epoll_wait(efd, events, num_daemons, -1);
         for (i = 0; i < n; i++) {
             if ((events[i].events & EPOLLERR) ||
                 (events[i].events & EPOLLHUP) || (!(events[i].events & EPOLLIN))) {

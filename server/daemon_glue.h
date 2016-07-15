@@ -2,10 +2,11 @@
 #define __DAEMON_GLUE_H_
 
 // statuses a daemon can be in
-#define     S_NULL          0
-#define     S_AVAILABLE     0x1 
-#define     S_BUSY          0x2
-#define     S_DEAD          0x4
+#define     S_NULL          0x00
+#define     S_AVAILABLE     0x01 
+#define     S_BUSY          0x02
+#define     S_SPAWNING      0x04
+#define     S_STARTING      0x08
 
 typedef enum _PIPE_END {
     PIPE_END_READ = 0,
@@ -25,6 +26,7 @@ typedef struct {
 daemon_t *d;
 
 void *spawn(void *param);
+void frag(void *param);
 void update_status(int *avail_array, int *count);
 
 #endif

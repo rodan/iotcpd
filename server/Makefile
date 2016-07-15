@@ -118,7 +118,7 @@ clean: $(SUBDIRS)
 	@for subdir in $(SUBDIRS); do \
 		echo "Cleaning $$subdir .."; rm -f $$subdir/*.o; \
 	done
-	@rm -f *.o $(PROJ) $(PROJ).{txt,cflags,dep} output.map tags
+	@rm -f *.o $(PROJ) $(PROJ).{txt,cflags,dep} output.map tags log
 
 doc:
 	rm -rf doc/*

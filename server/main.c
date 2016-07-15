@@ -20,28 +20,34 @@ void signal_handler(int sig, siginfo_t * si, void *context)
     int status;
     pid_t pid;
     int i;
-    int found = 0;
+    int found;
     sigset_t x;
     struct timespec ended;
     unsigned long diff;
 
     if (sig == SIGCHLD) {
-        sigemptyset (&x);
+        sigemptyset(&x);
         sigaddset(&x, SIGCHLD);
         sigprocmask(SIG_BLOCK, &x, NULL);
 
         if (si->si_code == CLD_EXITED || si->si_code == CLD_KILLED) {
             while (1) {
+                found = 0;
                 pid = waitpid(-1, &status, WNOHANG);
-                printf("sigchld %d\n", pid);
                 if (pid > 0) {
+#ifdef CONFIG_DEBUG
+                    printf("sigchld %d, status %d\n", pid, status);
+#endif
                     for (i = 0; i < num_daemons; i++) {
                         if (d[i].client_pid == pid) {
                             found = 1;
                             // close connection with client
                             close(d[i].client_fd);
                             clock_gettime(CLOCK_MONOTONIC_RAW, &ended);
-                            diff = (ended.tv_sec - d[i].start.tv_sec) * 1000 + (ended.tv_nsec - d[i].start.tv_nsec) / 1000000;
+                            diff =
+                                (ended.tv_sec - d[i].start.tv_sec) * 1000 + (ended.tv_nsec -
+                                                                             d[i].start.tv_nsec) /
+                                1000000;
                             if (diff < 100) {
                                 st.queries_0_100++;
                             } else if (diff < 250) {
@@ -56,7 +62,8 @@ void signal_handler(int sig, siginfo_t * si, void *context)
                                 st.queries_1000++;
                             }
 #ifdef CONFIG_DEBUG
-                            printf("pid %d exited after %lu ms, closed fd %d.\n", pid, diff, d[i].client_fd);
+                            printf("d[%d] pid %d exited after %lu ms, fd %d closed\n", i, pid,
+                                   diff, d[i].client_fd);
 #endif
                             d[i].client_fd = -1;
                             d[i].client_pid = -1;
@@ -70,34 +77,23 @@ void signal_handler(int sig, siginfo_t * si, void *context)
                             found = 1;
                             fprintf(stderr, "daemon d[%d] has died\n", i);
                             st.daemon_deaths++;
-                            d[i].daemon_pid = -1;
-                            d[i].status = S_DEAD;
-                            if (d[i].client_pid != -1) {
-                                kill(d[i].client_pid, SIGKILL);
-                            }
+                            frag(&d[i]);
                         }
                     }
-                } else if (pid == 0) {
+                    if (!found) {
+                        fprintf(stderr, "error, unknown child %d\n", pid);
+                        found = 1;
+                    }
+                } else {
+                    // =  0 if nothing else left to reap
+                    // = -1 if No child processes
                     sigprocmask(SIG_UNBLOCK, &x, NULL);
                     return;
                 }
             }
         }
-        if (!found) {
-            fprintf(stderr, "unknown child\n");
-        }
         sigprocmask(SIG_UNBLOCK, &x, NULL);
     } else if (sig == SIGINT) {
-        /*
-           for (i=0; i<num_daemons; i++) {
-           if (d[0].client_pid != -1) {
-           kill(d[0].client_pid, SIGKILL);
-           }
-           if (d[0].daemon_pid != -1) {
-           kill(d[0].daemon_pid, SIGKILL);
-           }
-           }
-         */
         //free(daemon_array);
         //free(d);
     } else if (sig == SIGUSR1) {
@@ -118,24 +114,50 @@ void signal_handler(int sig, siginfo_t * si, void *context)
         fprintf(stdout, "daemon respawns    %lu\n", st.daemon_respawns);
         fprintf(stdout, "daemon S_AVAILABLE %d\n", st.d_avail);
         fprintf(stdout, "daemon S_BUSY      %d\n", st.d_busy);
-        fprintf(stdout, "daemon S_DEAD      %d\n", st.d_dead);
-        fprintf(stdout, "daemon S_RESTART   %d\n", st.d_restarting);
+        fprintf(stdout, "daemon S_SPAWNING  %d\n", st.d_spawning);
+        fprintf(stdout, "daemon S_STARTING  %d\n", st.d_starting);
         fprintf(stdout, "uptime   %lu\n", time(NULL) - st.started);
         fprintf(stdout, " --- statistics ---- 8< -------\n");
     } else if (sig == SIGUSR2) {
         fprintf(stdout, " --- internal regs - 8< -------\n");
         for (i = 0; i < num_daemons; i++) {
-            fprintf(stdout, "d[%d].status = %d\n",i, d[i].status);
+            fprintf(stdout, "d[%d].status = %d\n", i, d[i].status);
             fprintf(stdout, "d[%d].producer_pipe_fd[PIPE_END_WRITE] = %d\n", i,
-                d[i].producer_pipe_fd[PIPE_END_WRITE]);
+                    d[i].producer_pipe_fd[PIPE_END_WRITE]);
             fprintf(stdout, "d[%d].consumer_pipe_fd[PIPE_END_READ] = %d\n", i,
-                d[i].consumer_pipe_fd[PIPE_END_READ]);
-            fprintf(stdout, "d[%d].daemon_pid = %d\n",i, d[i].daemon_pid);
-            fprintf(stdout, "d[%d].client_pid = %d\n",i, d[i].client_pid);
-            fprintf(stdout, "d[%d].client_fd = %d\n",i, d[i].client_fd);
+                    d[i].consumer_pipe_fd[PIPE_END_READ]);
+            fprintf(stdout, "d[%d].daemon_pid = %d\n", i, d[i].daemon_pid);
+            fprintf(stdout, "d[%d].client_pid = %d\n", i, d[i].client_pid);
+            fprintf(stdout, "d[%d].client_fd = %d\n", i, d[i].client_fd);
+            fprintf(stdout, "d[%d].start.tv_sec = %lu\n", i, d[i].start.tv_sec);
+            fprintf(stdout, "d[%d].start.tv_nsec = %lu\n", i, d[i].start.tv_nsec);
             fprintf(stdout, "\n");
         }
         fprintf(stdout, " --- internal regs - 8< -------\n");
+    } else if (sig == SIGALRM) {
+        for (i = 0; i < num_daemons; i++) {
+            if (d[i].status == S_SPAWNING) {
+                spawn(&d[i]);
+            } else if (d[i].status == S_STARTING) {
+                d[i].status = S_AVAILABLE;
+            } else if (d[i].status == S_BUSY) {
+                // daemon supervisor
+                if (d[i].start.tv_sec) {
+                    clock_gettime(CLOCK_MONOTONIC_RAW, &ended);
+                    diff = ended.tv_sec - d[i].start.tv_sec;
+                    if (diff > 2) {
+                        fprintf(stderr, "d[%d] - pid %d is killed for being 'busy' for %lus\n", i, d[i].daemon_pid, diff);
+                        frag(&d[i]);
+                    }
+                }
+            }
+        }
+        alarm(1);
+    } else if (sig == SIGHUP) {
+        // refresh all daemons
+        for (i = 0; i < num_daemons; i++) {
+            frag(&d[i]);
+        }
     }
 }
 
@@ -229,8 +251,10 @@ int main(int argc, char **argv)
     sa.sa_sigaction = signal_handler;
     sigaction(SIGCHLD, &sa, NULL);
     //sigaction(SIGINT, &sa, NULL);
+    sigaction(SIGALRM, &sa, NULL);
     sigaction(SIGUSR1, &sa, NULL);
     sigaction(SIGUSR2, &sa, NULL);
+    sigaction(SIGHUP, &sa, NULL);
 
     st.started = time(NULL);
 
@@ -248,7 +272,7 @@ int main(int argc, char **argv)
 
     d = (daemon_t *) malloc(num_daemons * sizeof(daemon_t));
     for (i = 0; i < num_daemons; i++) {
-        d[i].status = S_NULL;
+        d[i].status = S_SPAWNING;
         d[i].daemon_pid = -1;
         d[i].client_pid = -1;
         d[i].client_fd = -1;
@@ -258,12 +282,7 @@ int main(int argc, char **argv)
 
     srand(time(NULL));
 
-    for (i = 0; i < num_daemons; i++) {
-        spawn(&d[i]);
-    }
-
-    // allow time for the daemons to start
-    sleep(2);
+    alarm(1);
 
     // networking loop
     network_glue();
