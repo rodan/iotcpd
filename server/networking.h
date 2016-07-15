@@ -3,6 +3,8 @@
 
 #include "main.h"
 
+struct epoll_event *events;
+
 void network_glue(void);
 
 #endif

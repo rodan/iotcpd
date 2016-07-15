@@ -22,6 +22,7 @@ char **daemon_array;
 ///////////////////////////////
 
 volatile sig_atomic_t all_busy;
+char *daemon_array_container;
 
 typedef struct {
     unsigned long daemon_spawns;

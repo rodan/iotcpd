@@ -94,8 +94,11 @@ void signal_handler(int sig, siginfo_t * si, void *context)
         }
         sigprocmask(SIG_UNBLOCK, &x, NULL);
     } else if (sig == SIGINT) {
-        //free(daemon_array);
-        //free(d);
+        free(events);
+        free(daemon_array_container);
+        free(daemon_array);
+        free(d);
+        _exit(0);
     } else if (sig == SIGUSR1) {
         update_status(NULL, NULL);
         fprintf(stdout, " --- statistics ---- >8 -------\n");
@@ -239,7 +242,6 @@ int main(int argc, char **argv)
 {
     int i;
 
-    char *buf;
     char *p;
     int elem = 0;
     struct sigaction sa;
@@ -250,7 +252,7 @@ int main(int argc, char **argv)
     sa.sa_flags = SA_SIGINFO;
     sa.sa_sigaction = signal_handler;
     sigaction(SIGCHLD, &sa, NULL);
-    //sigaction(SIGINT, &sa, NULL);
+    sigaction(SIGINT, &sa, NULL);
     sigaction(SIGALRM, &sa, NULL);
     sigaction(SIGUSR1, &sa, NULL);
     sigaction(SIGUSR2, &sa, NULL);
@@ -260,8 +262,8 @@ int main(int argc, char **argv)
 
     parse_options(argc, argv);
 
-    buf = strdup(daemon_str);
-    p = strtok(buf, " ");
+    daemon_array_container = strdup(daemon_str);
+    p = strtok(daemon_array_container, " ");
     daemon_array = (char **)malloc(strlen(daemon_str) + 2 * sizeof(char));
     while (p) {
         daemon_array[elem] = p;
@@ -287,7 +289,8 @@ int main(int argc, char **argv)
     // networking loop
     network_glue();
 
-    free(buf);
+    free(events);
+    free(daemon_array_container);
     free(daemon_array);
     free(d);
 

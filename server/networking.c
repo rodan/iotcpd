@@ -19,6 +19,7 @@
 #include "config.h"
 #include "main.h"
 #include "daemon_glue.h"
+#include "networking.h"
 
 char *get_ip_str(const struct sockaddr *sa, char *dst, const size_t maxlen)
 {
@@ -161,6 +162,7 @@ int io_handler(const int fd)
         sigaction(SIGUSR1, &sa, NULL);
         sigaction(SIGUSR2, &sa, NULL);
         sigaction(SIGHUP, &sa, NULL);
+        sigaction(SIGINT, &sa, NULL);
 
         // "stay awhile and listen"
         // in case this child dies too soon the cleanup will not find the pid set by
@@ -209,7 +211,6 @@ void network_glue(void)
     int sfd, s;
     int efd;
     struct epoll_event event;
-    struct epoll_event *events;
 
     if (strlen(ip4) > 0) {
         s4.sin_family = AF_INET;
