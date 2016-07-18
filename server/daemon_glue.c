@@ -136,7 +136,7 @@ void update_status(int *avail_array, int *count)
         }
     }
 
-    if (st.d_busy == num_daemons) {
+    if (st.d_avail == 0) {
         all_busy = 1;
     }
 }

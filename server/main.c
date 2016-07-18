@@ -15,6 +15,26 @@
 #include "networking.h"
 #include "daemon_glue.h"
 
+void show_help()
+{
+    fprintf(stdout, "Usage: iotcpd [OPTION]\n\n");
+    fprintf(stdout, "Mandatory arguments to long options are mandatory for short options too.\n");
+    fprintf(stdout,
+            "\t-h, --help\n"
+            "\t\tthis help\n"
+            "\t-d, --daemon=NAME\n"
+            "\t\tdaemon to be run - (default '%s')\n"
+            "\t-i, --ipv4=IP\n"
+            "\t\tIPv4 used for listening for connections - (default '%s')\n"
+            "\t-I, --ipv6=IP\n"
+            "\t\tIPv6 used for listening for connections - (default '%s')\n"
+            "\t-p, --port=NUM\n"
+            "\t\tport used - (default '%d')\n"
+            "\t-n, --num-daemons=NUM\n"
+            "\t\tnumber of daemons accepted - (default '%d')\n",
+            daemon_str, ip4, ip6, port, num_daemons);
+}
+
 void signal_handler(int sig, siginfo_t * si, void *context)
 {
     int status;
@@ -76,7 +96,6 @@ void signal_handler(int sig, siginfo_t * si, void *context)
                         } else if (d[i].daemon_pid == pid) {
                             found = 1;
                             fprintf(stderr, "daemon d[%d] has died\n", i);
-                            st.daemon_deaths++;
                             frag(&d[i]);
                         }
                     }
@@ -94,7 +113,7 @@ void signal_handler(int sig, siginfo_t * si, void *context)
         }
         sigprocmask(SIG_UNBLOCK, &x, NULL);
     } else if (sig == SIGINT) {
-        free(events);
+        network_free();
         free(daemon_array_container);
         free(daemon_array);
         free(d);
@@ -104,8 +123,9 @@ void signal_handler(int sig, siginfo_t * si, void *context)
         fprintf(stdout, " --- statistics ---- >8 -------\n");
         fprintf(stdout, "queries total      %lu\n", st.queries_total);
         fprintf(stdout, "queries replied    %lu\n", st.queries_replied);
-        fprintf(stdout, "queries failed     %lu\n", st.queries_failed);
         fprintf(stdout, "queries delayed    %lu\n", st.queries_delayed);
+        fprintf(stdout, "queries timeout    %lu\n", st.queries_timeout);
+        fprintf(stdout, "queries failed     %lu\n", st.queries_failed);
         fprintf(stdout, "queries 0-100      %lu\n", st.queries_0_100);
         fprintf(stdout, "queries 100-250    %lu\n", st.queries_100_250);
         fprintf(stdout, "queries 250-500    %lu\n", st.queries_250_500);
@@ -113,8 +133,6 @@ void signal_handler(int sig, siginfo_t * si, void *context)
         fprintf(stdout, "queries 750-1000   %lu\n", st.queries_750_1000);
         fprintf(stdout, "queries 1000-      %lu\n", st.queries_1000);
         fprintf(stdout, "daemon spawns      %lu\n", st.daemon_spawns);
-        fprintf(stdout, "daemon deaths      %lu\n", st.daemon_deaths);
-        fprintf(stdout, "daemon respawns    %lu\n", st.daemon_respawns);
         fprintf(stdout, "daemon S_AVAILABLE %d\n", st.d_avail);
         fprintf(stdout, "daemon S_BUSY      %d\n", st.d_busy);
         fprintf(stdout, "daemon S_SPAWNING  %d\n", st.d_spawning);
@@ -149,7 +167,8 @@ void signal_handler(int sig, siginfo_t * si, void *context)
                     clock_gettime(CLOCK_MONOTONIC_RAW, &ended);
                     diff = ended.tv_sec - d[i].start.tv_sec;
                     if (diff > 2) {
-                        fprintf(stderr, "d[%d] - pid %d is killed for being 'busy' for %lus\n", i, d[i].daemon_pid, diff);
+                        fprintf(stderr, "d[%d] - pid %d is killed for being 'busy' for %lus\n", i,
+                                d[i].daemon_pid, diff);
                         frag(&d[i]);
                     }
                 }
@@ -186,25 +205,15 @@ void parse_options(int argc, char **argv)
     num_daemons = 4;
     debug = 0;
 
+    if (argc < 2) {
+        show_help();
+        exit(EXIT_SUCCESS);
+    }
+
     while ((option = getopt_long(argc, argv, short_options, long_options, NULL)) != -1) {
         switch (option) {
         case 'h':
-            fprintf(stdout, "Usage: iotcpd [OPTION]\n\n");
-            fprintf(stdout,
-                    "Mandatory arguments to long options are mandatory for short options too.\n");
-            fprintf(stdout,
-                    "  -h, --help              this help\n"
-                    "  -d, --daemon=NAME       daemon to be run\n"
-                    "                               (default '%s')\n"
-                    "  -i, --ipv4=IP           IPv4 used for listening for connections\n"
-                    "                               (default '%s')\n"
-                    "  -I, --ipv6=IP           IPv6 used for listening for connections\n"
-                    "                               (default '%s')\n"
-                    "  -p, --port=NUM          port used\n"
-                    "                               (default '%d')\n"
-                    "  -n, --num-daemons=NUM   number of daemons accepted\n"
-                    "                               (default '%d') - not implemented\n",
-                    daemon_str, ip4, ip6, port, num_daemons);
+            show_help();
             exit(EXIT_SUCCESS);
             break;
         case 'd':
@@ -289,7 +298,7 @@ int main(int argc, char **argv)
     // networking loop
     network_glue();
 
-    free(events);
+    network_free();
     free(daemon_array_container);
     free(daemon_array);
     free(d);

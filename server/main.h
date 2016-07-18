@@ -26,11 +26,10 @@ char *daemon_array_container;
 
 typedef struct {
     unsigned long daemon_spawns;
-    unsigned long daemon_deaths;
-    unsigned long daemon_respawns;
     unsigned long queries_total;
     unsigned long queries_replied;
     unsigned long queries_delayed;
+    unsigned long queries_timeout;
     unsigned long queries_failed;
     unsigned long queries_0_100;
     unsigned long queries_100_250;

@@ -79,7 +79,7 @@ int io_handler(const int fd)
         // If errno == EAGAIN, that means we have read all
         // data. So go back to the main loop
         if (errno != EAGAIN) {
-            perror("read failure");
+            //perror("read failure");
             return EXIT_FAILURE;
         }
         return EXIT_SUCCESS;
@@ -92,13 +92,13 @@ int io_handler(const int fd)
 
 #ifdef CONFIG_DEBUG
     /*
-    // write the buffer to standard output
-    s = write(1, buff_rx, count);
-    if (s == -1) {
-        perror("write to stdout failed");
-        return EXIT_FAILURE;
-    }
-    */
+       // write the buffer to standard output
+       s = write(1, buff_rx, count);
+       if (s == -1) {
+       perror("write to stdout failed");
+       return EXIT_FAILURE;
+       }
+     */
 #endif
 
     clock_gettime(CLOCK_MONOTONIC_RAW, &start);
@@ -124,7 +124,9 @@ int io_handler(const int fd)
             st.queries_failed++;
             s = write(fd, "ERR\n", 4);
             close(fd);
-            fprintf(stderr, "dropping connection. avail/busy/spawning/starting daemons: %d/%d/%d/%d\n", st.d_avail, st.d_busy, st.d_spawning, st.d_starting);
+            fprintf(stderr,
+                    "dropping connection. avail/busy/spawning/starting daemons: %d/%d/%d/%d\n",
+                    st.d_avail, st.d_busy, st.d_spawning, st.d_starting);
             return EXIT_FAILURE;
         } else {
             // at least one daemon is available, lets select one
@@ -138,7 +140,7 @@ int io_handler(const int fd)
     d[sel_daemon].start.tv_sec = start.tv_sec;
     d[sel_daemon].start.tv_nsec = start.tv_nsec;
 
-    asm( "nop" );
+    asm("nop");
     // fork and send string to one of the daemons
     pid = fork();
 
@@ -193,9 +195,9 @@ int io_handler(const int fd)
             perror("write to remote fd failed");
             return EXIT_FAILURE;
         }
-
 #ifdef CONFIG_DEBUG
-        printf("d[%d] sent %lub to fd %d. %d/%d busy\n", sel_daemon, bytes, fd, st.d_busy, num_daemons);
+        printf("d[%d] sent %lub to fd %d. %d/%d busy\n", sel_daemon, bytes, fd, st.d_busy,
+               num_daemons);
 #endif
         _exit(0);
     }
@@ -211,6 +213,8 @@ void network_glue(void)
     int sfd, s;
     int efd;
     struct epoll_event event;
+    socklen_t len;
+    int optval;
 
     if (strlen(ip4) > 0) {
         s4.sin_family = AF_INET;
@@ -279,8 +283,10 @@ void network_glue(void)
             if ((events[i].events & EPOLLERR) ||
                 (events[i].events & EPOLLHUP) || (!(events[i].events & EPOLLIN))) {
                 // an error has occured on this fd, or the socket is not
-                // ready for reading (why were we notified then?)
+                // ready for reading 
+                // (happens when the client closes the connection due to timeout)
                 fprintf(stderr, "epoll error\n");
+                st.queries_timeout++;
                 close(events[i].data.fd);
                 continue;
             }
@@ -311,8 +317,7 @@ void network_glue(void)
                                     hbuf, sizeof hbuf,
                                     sbuf, sizeof sbuf, NI_NUMERICHOST | NI_NUMERICSERV);
                     if (s == 0) {
-                        printf("new connection - fd %d, host %s, port %s\n", 
-                                infd, hbuf, sbuf);
+                        printf("new connection - fd %d, host %s, port %s\n", infd, hbuf, sbuf);
                     }
 #endif
 
@@ -334,11 +339,20 @@ void network_glue(void)
                 continue;
             } else {
                 // data is present on the fd and it's ready to be read
-                io_handler(events[i].data.fd);
+                if (getsockopt(events[i].data.fd, SOL_SOCKET, SO_ERROR, &optval, &len) == 0) {
+                    if (optval == 0) {
+                        io_handler(events[i].data.fd);
+                    }
+                }
             }
         }
     }
 
-    free(events);
+    network_free();
     close(sfd);
+}
+
+void network_free(void)
+{
+    free(events);
 }
