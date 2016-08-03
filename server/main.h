@@ -14,6 +14,7 @@
 int debug;
 int num_daemons;
 int port;
+int busy_timeout;
 char *ip4;
 char *ip6;
 char *daemon_str;

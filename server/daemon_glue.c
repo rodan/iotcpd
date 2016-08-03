@@ -37,39 +37,40 @@ void *spawn(void *param)
         os_rc = dup2(d->producer_pipe_fd[PIPE_END_READ], STDIN_FILENO);
         if (os_rc == -1) {
             fprintf(stderr, "dup2 error '%s (%d)'\n", strerror(errno), errno);
-            return NULL;
+            _exit(EXIT_FAILURE);
         }
         os_rc = close(d->producer_pipe_fd[PIPE_END_READ]);
         if (os_rc == -1) {
             fprintf(stderr, "close error '%s (%d)'\n", strerror(errno), errno);
-            return NULL;
+            _exit(EXIT_FAILURE);
         }
         os_rc = close(d->producer_pipe_fd[PIPE_END_WRITE]);
         if (os_rc == -1) {
             fprintf(stderr, "close error '%s (%d)'\n", strerror(errno), errno);
-            return NULL;
+            _exit(EXIT_FAILURE);
         }
         os_rc = close(d->consumer_pipe_fd[PIPE_END_READ]);
         if (os_rc == -1) {
             fprintf(stderr, "close error '%s (%d)'\n", strerror(errno), errno);
-            return NULL;
+            _exit(EXIT_FAILURE);
         }
         os_rc = dup2(d->consumer_pipe_fd[PIPE_END_WRITE], STDOUT_FILENO);
         if (os_rc == -1) {
             fprintf(stderr, "dup2 error '%s (%d)'\n", strerror(errno), errno);
-            return NULL;
+            _exit(EXIT_FAILURE);
         }
         os_rc = close(d->consumer_pipe_fd[PIPE_END_WRITE]);
         if (os_rc == -1) {
             fprintf(stderr, "close error '%s (%d)'\n", strerror(errno), errno);
-            return NULL;
+            _exit(EXIT_FAILURE);
         }
 
         os_rc = execvp(daemon_array[0], daemon_array);
         if (os_rc == -1) {
             fprintf(stderr, "execvp error '%s (%d)'\n", strerror(errno), errno);
-            return NULL;
+            _exit(EXIT_FAILURE);
         }
+        _exit(EXIT_FAILURE);
     }
     if (d->daemon_pid > 0) {
         d->status = S_STARTING;

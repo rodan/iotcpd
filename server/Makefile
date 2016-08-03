@@ -89,7 +89,9 @@ $(OBJS): $(PROJ).cflags
 $(PROJ): $(OBJS)
 	@echo -e "\n>> Building $@ as target $(TARGET)"
 	@$(CC) $(CFLAGS) $(LDFLAGS) $(INCLUDES) -o $@ $+ && size $@ 
-	@#@python tools/msp430-ram-usage $@
+ifeq ($(DEBUG),)
+	@strip $@
+endif
 
 modinit.o: modinit.c
 	@echo "CC $<"

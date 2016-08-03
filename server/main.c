@@ -31,8 +31,10 @@ void show_help()
             "\t-p, --port=NUM\n"
             "\t\tport used - (default '%d')\n"
             "\t-n, --num-daemons=NUM\n"
-            "\t\tnumber of daemons accepted - (default '%d')\n",
-            daemon_str, ip4, ip6, port, num_daemons);
+            "\t\tnumber of daemons accepted - (default '%d')\n"
+            "\t-b, --busy-timeout=NUM\n"
+            "\t\tnumber of seconds after which an unresponsive daemon is restarted - (default '%d')\n",
+            daemon_str, ip4, ip6, port, num_daemons, busy_timeout);
 }
 
 void signal_handler(int sig, siginfo_t * si, void *context)
@@ -117,7 +119,7 @@ void signal_handler(int sig, siginfo_t * si, void *context)
         free(daemon_array_container);
         free(daemon_array);
         free(d);
-        _exit(0);
+        _exit(EXIT_SUCCESS);
     } else if (sig == SIGUSR1) {
         update_status(NULL, NULL);
         fprintf(stdout, " --- statistics ---- >8 -------\n");
@@ -166,7 +168,7 @@ void signal_handler(int sig, siginfo_t * si, void *context)
                 if (d[i].start.tv_sec) {
                     clock_gettime(CLOCK_MONOTONIC_RAW, &ended);
                     diff = ended.tv_sec - d[i].start.tv_sec;
-                    if (diff > 2) {
+                    if (diff > busy_timeout) {
                         fprintf(stderr, "d[%d] - pid %d is killed for being 'busy' for %lus\n", i,
                                 d[i].daemon_pid, diff);
                         frag(&d[i]);
@@ -174,7 +176,7 @@ void signal_handler(int sig, siginfo_t * si, void *context)
                 }
             }
         }
-        alarm(1);
+        alarm(2);
     } else if (sig == SIGHUP) {
         // refresh all daemons
         for (i = 0; i < num_daemons; i++) {
@@ -185,7 +187,7 @@ void signal_handler(int sig, siginfo_t * si, void *context)
 
 void parse_options(int argc, char **argv)
 {
-    static const char short_options[] = "hd:i:I:p:n:";
+    static const char short_options[] = "hd:i:I:p:n:b:";
     static const struct option long_options[] = {
         {.name = "help",.val = 'h'},
         {.name = "daemon",.has_arg = 1,.val = 'd'},
@@ -193,6 +195,7 @@ void parse_options(int argc, char **argv)
         {.name = "ipv6",.has_arg = 1,.val = 'I'},
         {.name = "port",.has_arg = 1,.val = 'p'},
         {.name = "num-daemons",.has_arg = 1,.val = 'n'},
+        {.name = "busy-timeout",.has_arg = 1,.val = 'b'},
         {0, 0, 0, 0}
     };
     int option;
@@ -203,6 +206,7 @@ void parse_options(int argc, char **argv)
     ip6 = "";
     port = 9991;
     num_daemons = 4;
+    busy_timeout = 5;
     debug = 0;
 
     if (argc < 2) {
@@ -236,6 +240,13 @@ void parse_options(int argc, char **argv)
             num_daemons = atoi(optarg);
             if (num_daemons < 1 || num_daemons > MAX_DAEMONS) {
                 fprintf(stderr, "invalid num_daemons value\n");
+                exit(EXIT_FAILURE);
+            }
+            break;
+        case 'b':
+            busy_timeout = atoi(optarg);
+            if (busy_timeout < 3) {
+                fprintf(stderr, "invalid busy_timeout value\n");
                 exit(EXIT_FAILURE);
             }
             break;
@@ -293,7 +304,7 @@ int main(int argc, char **argv)
 
     srand(time(NULL));
 
-    alarm(1);
+    alarm(2);
 
     // networking loop
     network_glue();

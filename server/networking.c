@@ -174,32 +174,32 @@ int io_handler(const int fd)
         bytes = write(d[sel_daemon].producer_pipe_fd[PIPE_END_WRITE], buff_rx, strlen(buff_rx));
         if (bytes == -1) {
             fprintf(stderr, "pipe write error '%s (%d)'\n", strerror(errno), errno);
-            return EXIT_FAILURE;
+            _exit(EXIT_FAILURE);
         }
 
         bytes = read(d[sel_daemon].consumer_pipe_fd[PIPE_END_READ], buff_tx, MSG_MAX);
         if (bytes == -1) {
             fprintf(stderr, "pipe read error '%s (%d)'\n", strerror(errno), errno);
-            return EXIT_FAILURE;
+            _exit(EXIT_FAILURE);
         }
 
         buff_tx[bytes] = '\0';
 
         if (bytes == -1) {
             fprintf(stderr, "pipe write error '%s (%d)'\n", strerror(errno), errno);
-            return EXIT_FAILURE;
+            _exit(EXIT_FAILURE);
         }
         // write the buffer to remote fd
         s = write(fd, buff_tx, bytes);
         if (s == -1) {
             perror("write to remote fd failed");
-            return EXIT_FAILURE;
+            _exit(EXIT_FAILURE);
         }
 #ifdef CONFIG_DEBUG
         printf("d[%d] sent %lub to fd %d. %d/%d busy\n", sel_daemon, bytes, fd, st.d_busy,
                num_daemons);
 #endif
-        _exit(0);
+        _exit(EXIT_SUCCESS);
     }
 
     return EXIT_SUCCESS;
@@ -285,7 +285,7 @@ void network_glue(void)
                 // an error has occured on this fd, or the socket is not
                 // ready for reading 
                 // (happens when the client closes the connection due to timeout)
-                fprintf(stderr, "epoll error\n");
+                //fprintf(stderr, "epoll error\n");
                 st.queries_timeout++;
                 close(events[i].data.fd);
                 continue;
