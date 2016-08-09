@@ -90,7 +90,7 @@ int io_handler(const int fd)
 
     buff_rx[count] = 0;
 
-#ifdef CONFIG_DEBUG
+#ifdef CONFIG_VERBOSE
     /*
        // write the buffer to standard output
        s = write(1, buff_rx, count);
@@ -151,7 +151,7 @@ int io_handler(const int fd)
         // parent
         d[sel_daemon].client_pid = pid;
         st.queries_replied++;
-#ifdef CONFIG_DEBUG
+#ifdef CONFIG_VERBOSE
         printf("pid %d forked\n", pid);
 #endif
     } else if (pid == 0) {
@@ -174,28 +174,30 @@ int io_handler(const int fd)
         bytes = write(d[sel_daemon].producer_pipe_fd[PIPE_END_WRITE], buff_rx, strlen(buff_rx));
         if (bytes == -1) {
             fprintf(stderr, "pipe write error '%s (%d)'\n", strerror(errno), errno);
+            fprintf(stderr, "d[%d] - pid %d is killed due to pipe errors\n", sel_daemon,
+                                d[sel_daemon].daemon_pid);
+            frag(&d[sel_daemon]);
             _exit(EXIT_FAILURE);
         }
 
         bytes = read(d[sel_daemon].consumer_pipe_fd[PIPE_END_READ], buff_tx, MSG_MAX);
         if (bytes == -1) {
             fprintf(stderr, "pipe read error '%s (%d)'\n", strerror(errno), errno);
+            fprintf(stderr, "d[%d] - pid %d is killed due to pipe errors\n", sel_daemon,
+                                d[sel_daemon].daemon_pid);
+            frag(&d[sel_daemon]);
             _exit(EXIT_FAILURE);
         }
 
         buff_tx[bytes] = '\0';
 
-        if (bytes == -1) {
-            fprintf(stderr, "pipe write error '%s (%d)'\n", strerror(errno), errno);
-            _exit(EXIT_FAILURE);
-        }
         // write the buffer to remote fd
         s = write(fd, buff_tx, bytes);
         if (s == -1) {
             perror("write to remote fd failed");
             _exit(EXIT_FAILURE);
         }
-#ifdef CONFIG_DEBUG
+#ifdef CONFIG_VERBOSE
         printf("d[%d] sent %lub to fd %d. %d/%d busy\n", sel_daemon, bytes, fd, st.d_busy,
                num_daemons);
 #endif
@@ -311,7 +313,7 @@ void network_glue(void)
                             break;
                         }
                     }
-#ifdef CONFIG_DEBUG
+#ifdef CONFIG_VERBOSE
                     char hbuf[NI_MAXHOST], sbuf[NI_MAXSERV];
                     s = getnameinfo(&in_addr, in_len,
                                     hbuf, sizeof hbuf,

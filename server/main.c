@@ -17,8 +17,10 @@
 
 void show_help()
 {
-    fprintf(stdout, "Usage: iotcpd [OPTION]\n\n");
-    fprintf(stdout, "Mandatory arguments to long options are mandatory for short options too.\n");
+    fprintf(stdout, "Usage: iotcpd [OPTION]\n");
+    fprintf(stdout, "Redirector daemon that allows for multiple identical non-networking daemons \n");
+    fprintf(stdout, "that talk via stdin/stdout and only exit on EOF to be bound to a TCP port.\n");
+    fprintf(stdout, "Mandatory arguments to long options are mandatory for short options too.\n\n");
     fprintf(stdout,
             "\t-h, --help\n"
             "\t\tthis help\n"
@@ -31,10 +33,15 @@ void show_help()
             "\t-p, --port=NUM\n"
             "\t\tport used - (default '%d')\n"
             "\t-n, --num-daemons=NUM\n"
-            "\t\tnumber of daemons accepted - (default '%d')\n"
+            "\t\tnumber of daemons spawned - (default '%d')\n"
             "\t-b, --busy-timeout=NUM\n"
-            "\t\tnumber of seconds after which an unresponsive daemon is restarted - (default '%d')\n",
-            daemon_str, ip4, ip6, port, num_daemons, busy_timeout);
+            "\t\tnumber of seconds after which an unresponsive daemon is restarted - (default '%d')\n"
+            "\t-a, --alarm-interval=NUM\n"
+            "\t\ttime interval in seconds between two consecutive ALARM interrupts - (default '%d')\n\n"
+            "Example:\n"
+            "\tiotcpd --num-daemons 8 --daemon \"squidGuard -c sg/adblock.conf\" \\\n"
+            "\t\t--ipv4 10.20.30.40 --port 1234\n",
+            daemon_str, ip4, ip6, port, num_daemons, busy_timeout, alarm_interval);
 }
 
 void signal_handler(int sig, siginfo_t * si, void *context)
@@ -57,7 +64,7 @@ void signal_handler(int sig, siginfo_t * si, void *context)
                 found = 0;
                 pid = waitpid(-1, &status, WNOHANG);
                 if (pid > 0) {
-#ifdef CONFIG_DEBUG
+#ifdef CONFIG_VERBOSE
                     printf("sigchld %d, status %d\n", pid, status);
 #endif
                     for (i = 0; i < num_daemons; i++) {
@@ -83,7 +90,7 @@ void signal_handler(int sig, siginfo_t * si, void *context)
                             } else {
                                 st.queries_1000++;
                             }
-#ifdef CONFIG_DEBUG
+#ifdef CONFIG_VERBOSE
                             printf("d[%d] pid %d exited after %lu ms, fd %d closed\n", i, pid,
                                    diff, d[i].client_fd);
 #endif
@@ -98,11 +105,12 @@ void signal_handler(int sig, siginfo_t * si, void *context)
                         } else if (d[i].daemon_pid == pid) {
                             found = 1;
                             fprintf(stderr, "daemon d[%d] has died\n", i);
+                            d[i].daemon_pid = -1;
                             frag(&d[i]);
                         }
                     }
                     if (!found) {
-                        fprintf(stderr, "error, unknown child %d\n", pid);
+                        //fprintf(stderr, "warning, unknown child %d\n", pid);
                         found = 1;
                     }
                 } else {
@@ -176,7 +184,7 @@ void signal_handler(int sig, siginfo_t * si, void *context)
                 }
             }
         }
-        alarm(2);
+        alarm(alarm_interval);
     } else if (sig == SIGHUP) {
         // refresh all daemons
         for (i = 0; i < num_daemons; i++) {
@@ -187,7 +195,7 @@ void signal_handler(int sig, siginfo_t * si, void *context)
 
 void parse_options(int argc, char **argv)
 {
-    static const char short_options[] = "hd:i:I:p:n:b:";
+    static const char short_options[] = "hd:i:I:p:n:b:a:";
     static const struct option long_options[] = {
         {.name = "help",.val = 'h'},
         {.name = "daemon",.has_arg = 1,.val = 'd'},
@@ -196,6 +204,7 @@ void parse_options(int argc, char **argv)
         {.name = "port",.has_arg = 1,.val = 'p'},
         {.name = "num-daemons",.has_arg = 1,.val = 'n'},
         {.name = "busy-timeout",.has_arg = 1,.val = 'b'},
+        {.name = "alarm-interval",.has_arg = 1,.val = 'a'},
         {0, 0, 0, 0}
     };
     int option;
@@ -206,7 +215,8 @@ void parse_options(int argc, char **argv)
     ip6 = "";
     port = 9991;
     num_daemons = 4;
-    busy_timeout = 5;
+    busy_timeout = 15;
+    alarm_interval = 2;
     debug = 0;
 
     if (argc < 2) {
@@ -247,6 +257,13 @@ void parse_options(int argc, char **argv)
             busy_timeout = atoi(optarg);
             if (busy_timeout < 3) {
                 fprintf(stderr, "invalid busy_timeout value\n");
+                exit(EXIT_FAILURE);
+            }
+            break;
+        case 'a':
+            alarm_interval = atoi(optarg);
+            if (alarm_interval < 1) {
+                fprintf(stderr, "invalid alarm_interval value\n");
                 exit(EXIT_FAILURE);
             }
             break;
@@ -304,7 +321,7 @@ int main(int argc, char **argv)
 
     srand(time(NULL));
 
-    alarm(2);
+    alarm(alarm_interval);
 
     // networking loop
     network_glue();
