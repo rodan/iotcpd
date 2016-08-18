@@ -14,6 +14,7 @@
 #include "main.h"
 #include "networking.h"
 #include "daemon_glue.h"
+#include "helpers.h"
 
 void show_help()
 {
@@ -51,8 +52,8 @@ void signal_handler(int sig, siginfo_t * si, void *context)
     int i;
     int found;
     sigset_t x;
-    struct timespec ended;
-    unsigned long diff;
+    struct timespec now, diff;
+    long long ldiff;
 
     if (sig == SIGCHLD) {
         sigemptyset(&x);
@@ -72,27 +73,25 @@ void signal_handler(int sig, siginfo_t * si, void *context)
                             found = 1;
                             // close connection with client
                             close(d[i].client_fd);
-                            clock_gettime(CLOCK_MONOTONIC_RAW, &ended);
-                            diff =
-                                (ended.tv_sec - d[i].start.tv_sec) * 1000 + (ended.tv_nsec -
-                                                                             d[i].start.tv_nsec) /
-                                1000000;
-                            if (diff < 100) {
+                            clock_gettime(CLOCK_MONOTONIC_RAW, &now);
+                            diff = ts_diff(d[i].start, now);
+                            ldiff = (diff.tv_sec * 1000) + (diff.tv_nsec / 1000000);
+                            if (ldiff < 100) {
                                 st.queries_0_100++;
-                            } else if (diff < 250) {
+                            } else if (ldiff < 250) {
                                 st.queries_100_250++;
-                            } else if (diff < 500) {
+                            } else if (ldiff < 500) {
                                 st.queries_250_500++;
-                            } else if (diff < 750) {
+                            } else if (ldiff < 750) {
                                 st.queries_500_750++;
-                            } else if (diff < 1000) {
+                            } else if (ldiff < 1000) {
                                 st.queries_750_1000++;
                             } else {
                                 st.queries_1000++;
                             }
 #ifdef CONFIG_VERBOSE
                             printf("d[%d] pid %d exited after %lu ms, fd %d closed\n", i, pid,
-                                   diff, d[i].client_fd);
+                                   ldiff, d[i].client_fd);
 #endif
                             d[i].client_fd = -1;
                             d[i].client_pid = -1;
@@ -174,11 +173,11 @@ void signal_handler(int sig, siginfo_t * si, void *context)
             } else if (d[i].status == S_BUSY) {
                 // daemon supervisor
                 if (d[i].start.tv_sec) {
-                    clock_gettime(CLOCK_MONOTONIC_RAW, &ended);
-                    diff = ended.tv_sec - d[i].start.tv_sec;
-                    if (diff > busy_timeout) {
+                    clock_gettime(CLOCK_MONOTONIC_RAW, &now);
+                    diff = ts_diff(d[i].start, now);
+                    if (diff.tv_sec > busy_timeout) {
                         fprintf(stderr, "d[%d] - pid %d is killed for being 'busy' for %lus\n", i,
-                                d[i].daemon_pid, diff);
+                                d[i].daemon_pid, diff.tv_sec);
                         frag(&d[i]);
                     }
                 }
