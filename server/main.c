@@ -15,6 +15,11 @@
 #include "networking.h"
 #include "daemon_glue.h"
 #include "helpers.h"
+#include "version.h"
+
+// strings that can be grep-ed in the compiled binary
+const char v_comm[] = COMMIT;
+const char v_date[] = V_DATE;
 
 void show_help()
 {
@@ -41,8 +46,11 @@ void show_help()
             "\t\ttime interval in seconds between two consecutive ALARM interrupts - (default '%d')\n\n"
             "Example:\n"
             "\tiotcpd --num-daemons 8 --daemon \"squidGuard -c sg/adblock.conf\" \\\n"
-            "\t\t--ipv4 10.20.30.40 --port 1234\n",
-            daemon_str, ip4, ip6, port, num_daemons, busy_timeout, alarm_interval);
+            "\t\t--ipv4 10.20.30.40 --port 1234\n"
+            "Version:\n"
+            "\t\t%s\n"
+            "\t\t%s\n",
+            daemon_str, ip4, ip6, port, num_daemons, busy_timeout, alarm_interval, v_comm, v_date);
 }
 
 void signal_handler(int sig, siginfo_t * si, void *context)
@@ -147,6 +155,8 @@ void signal_handler(int sig, siginfo_t * si, void *context)
         fprintf(stdout, "daemon S_SPAWNING  %d\n", st.d_spawning);
         fprintf(stdout, "daemon S_STARTING  %d\n", st.d_starting);
         fprintf(stdout, "uptime   %lu\n", time(NULL) - st.started);
+        fprintf(stdout, "%s\n", v_comm);
+        fprintf(stdout, "v_date %s\n", v_date);
         fprintf(stdout, " --- statistics ---- 8< -------\n");
     } else if (sig == SIGUSR2) {
         fprintf(stdout, " --- internal regs - 8< -------\n");
