@@ -40,7 +40,7 @@ char *get_ip_str(const struct sockaddr *sa, char *dst, const size_t maxlen)
     return dst;
 }
 
-static int make_socket_non_blocking(int sfd)
+int make_socket_non_blocking(int sfd)
 {
     int flags, s;
 
@@ -65,6 +65,7 @@ int io_handler(const int fd)
     char buff_rx[MSG_MAX], buff_tx[MSG_MAX];
     ssize_t bytes;
     ssize_t count;
+    ssize_t total_read = 0;
     int s;
     pid_t pid;
     int sel_daemon;
@@ -74,21 +75,32 @@ int io_handler(const int fd)
     struct timespec start;
     struct sigaction sa;
 
-    count = read(fd, buff_rx, (sizeof buff_rx) - 1);
-    if (count == -1) {
-        // If errno == EAGAIN, that means we have read all
-        // data. So go back to the main loop
-        if (errno != EAGAIN) {
-            //perror("read failure");
+    while (1) {
+        count = read(fd, buff_rx, MSG_MAX - total_read - 1);
+        if (count == -1) {
+            st.queries_failed++;
+            close(fd);
             return EXIT_FAILURE;
+        } else {
+            total_read += count;
+            buff_rx[count] = 0;
+            if (buff_rx[total_read - 1] == 0x0a) {
+                continue;
+            }
         }
-        return EXIT_SUCCESS;
-    } else if (count == 0) {
-        // end of file. the remote has closed the connection
-        return EXIT_FAILURE;
     }
 
-    buff_rx[count] = 0;
+    buff_rx[total_read] = 0;
+
+    if (buff_rx[count - 1] != 0x0a) {
+        st.queries_failed++;
+        s = write(fd, "ERR\n", 4);
+        close(fd);
+        fprintf(stderr, "invalid input from squid\n");
+        fprintf(stderr, "string was %lu bytes long:\n%s\n", count, buff_rx);
+
+        return EXIT_FAILURE;
+    }
 
 #ifdef CONFIG_VERBOSE
     /*
@@ -111,7 +123,7 @@ int io_handler(const int fd)
         st.queries_delayed++;
 
         timer = 0;
-        while (timer < 800) {
+        while (timer < 500) {
             usleep(1000);
             timer++;
             if (!all_busy) {
@@ -134,13 +146,24 @@ int io_handler(const int fd)
         }
     }
 
+    //make sure j will end up non-zero in the division below
+    if (j == 0) {
+        st.queries_failed++;
+        s = write(fd, "ERR\n", 4);
+        close(fd);
+        fprintf(stderr,
+                    "dropping connection (try 2). avail/busy/spawning/starting daemons: %d/%d/%d/%d\n",
+                    st.d_avail, st.d_busy, st.d_spawning, st.d_starting);
+        return EXIT_FAILURE;
+    }
+
     sel_daemon = avail_daemon[rand() % j];
     d[sel_daemon].status = S_BUSY;
     d[sel_daemon].client_fd = fd;
     d[sel_daemon].start.tv_sec = start.tv_sec;
     d[sel_daemon].start.tv_nsec = start.tv_nsec;
 
-    asm("nop");
+    //asm("nop");
     // fork and send string to one of the daemons
     pid = fork();
 
@@ -169,8 +192,9 @@ int io_handler(const int fd)
         // "stay awhile and listen"
         // in case this child dies too soon the cleanup will not find the pid set by
         // the parent a few lines above
-        usleep(1000);
+        usleep(2000);
 
+        // send the string to the daemon
         bytes = write(d[sel_daemon].producer_pipe_fd[PIPE_END_WRITE], buff_rx, strlen(buff_rx));
         if (bytes == -1) {
             fprintf(stderr, "pipe write error '%s (%d)'\n", strerror(errno), errno);
@@ -180,6 +204,7 @@ int io_handler(const int fd)
             _exit(EXIT_FAILURE);
         }
 
+        // get answer from the daemon
         bytes = read(d[sel_daemon].consumer_pipe_fd[PIPE_END_READ], buff_tx, MSG_MAX);
         if (bytes == -1) {
             fprintf(stderr, "pipe read error '%s (%d)'\n", strerror(errno), errno);
@@ -207,7 +232,7 @@ int io_handler(const int fd)
     return EXIT_SUCCESS;
 }
 
-void network_glue(void)
+int network_glue(void)
 {
     struct sockaddr_in s4;
     struct sockaddr_in6 s6;
@@ -230,14 +255,14 @@ void network_glue(void)
         memcpy(&ss, &s6, sizeof(s6));
     } else {
         fprintf(stderr, "IPv4/IPv6 unspecified\n");
-        return;
+        return EXIT_FAILURE;
     }
 
     sfd = socket(ss.ss_family, SOCK_STREAM, 0);
 
     if (sfd == -1) {
-        perror("socket failed");
-        return;
+        perror("socket() failed");
+        return EXIT_FAILURE;
     }
 
     make_socket_non_blocking(sfd);
@@ -245,33 +270,38 @@ void network_glue(void)
 #ifndef WIN32
     int one = 1;
     if (setsockopt(sfd, SOL_SOCKET, SO_REUSEADDR, &one, sizeof(one)) == -1) {
-        perror("setsockopt failed");
-        return;
+        perror("setsockopt() failed");
+        close(sfd);
+        return EXIT_FAILURE;
     }
 #endif
 
     if (bind(sfd, (struct sockaddr *)&ss, sizeof(ss)) < 0) {
-        perror("bind failed");
-        return;
+        perror("bind() failed");
+        close(sfd);
+        return EXIT_FAILURE;
     }
 
     if (listen(sfd, num_daemons) < 0) {
-        perror("listen failed");
-        return;
+        perror("listen() failed");
+        close(sfd);
+        return EXIT_FAILURE;
     }
 
     efd = epoll_create1(0);
     if (efd == -1) {
-        perror("epoll_create");
-        abort();
+        perror("epoll_create() failed");
+        close(sfd);
+        return EXIT_FAILURE;
     }
 
     event.data.fd = sfd;
     event.events = EPOLLIN | EPOLLET;
     s = epoll_ctl(efd, EPOLL_CTL_ADD, sfd, &event);
     if (s == -1) {
-        perror("epoll_ctl");
-        abort();
+        perror("epoll_ctl(sfd) failed");
+        close(sfd);
+        return EXIT_FAILURE;
     }
 
     events = calloc(num_daemons, sizeof event);
@@ -309,7 +339,7 @@ void network_glue(void)
                             // connections.
                             break;
                         } else {
-                            perror("accept");
+                            perror("accept() failed");
                             break;
                         }
                     }
@@ -327,15 +357,20 @@ void network_glue(void)
                     // list of fds to monitor.
                     s = make_socket_non_blocking(infd);
                     if (s == -1) {
-                        abort();
+                        perror("make_socket_non_blocking(infd) failed");
+                        st.queries_failed++;
+                        close(infd);
+                        break;
                     }
 
                     event.data.fd = infd;
                     event.events = EPOLLIN | EPOLLET;
                     s = epoll_ctl(efd, EPOLL_CTL_ADD, infd, &event);
                     if (s == -1) {
-                        perror("epoll_ctl");
-                        abort();
+                        perror("epoll_ctl(infd) failed");
+                        st.queries_failed++;
+                        close(infd);
+                        break;
                     }
                 }
                 continue;
@@ -350,8 +385,8 @@ void network_glue(void)
         }
     }
 
-    network_free();
     close(sfd);
+    return EXIT_SUCCESS;
 }
 
 void network_free(void)

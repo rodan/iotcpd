@@ -68,7 +68,7 @@ void signal_handler(int sig, siginfo_t * si, void *context)
         sigaddset(&x, SIGCHLD);
         sigprocmask(SIG_BLOCK, &x, NULL);
 
-        if (si->si_code == CLD_EXITED || si->si_code == CLD_KILLED) {
+        //if (si->si_code == CLD_EXITED || si->si_code == CLD_KILLED) {
             while (1) {
                 found = 0;
                 pid = waitpid(-1, &status, WNOHANG);
@@ -127,7 +127,7 @@ void signal_handler(int sig, siginfo_t * si, void *context)
                     return;
                 }
             }
-        }
+        //}
         sigprocmask(SIG_UNBLOCK, &x, NULL);
     } else if (sig == SIGINT) {
         network_free();
@@ -310,7 +310,7 @@ int main(int argc, char **argv)
 
     daemon_array_container = strdup(daemon_str);
     p = strtok(daemon_array_container, " ");
-    daemon_array = (char **)malloc(strlen(daemon_str) + 2 * sizeof(char));
+    daemon_array = (char **)malloc(strlen(daemon_str) * sizeof(char));
     while (p) {
         daemon_array[elem] = p;
         p = strtok(NULL, " ");
@@ -334,6 +334,18 @@ int main(int argc, char **argv)
 
     // networking loop
     network_glue();
+
+    // cleanup
+    sa.sa_handler = SIG_IGN;
+    sigaction(SIGCHLD, &sa, NULL);
+    sigaction(SIGALRM, &sa, NULL);
+    sigaction(SIGUSR1, &sa, NULL);
+    sigaction(SIGUSR2, &sa, NULL);
+    sigaction(SIGHUP, &sa, NULL);
+    sigaction(SIGINT, &sa, NULL);
+    for (i = 0; i < num_daemons; i++) {
+        frag(&d[i]);
+    }
 
     network_free();
     free(daemon_array_container);

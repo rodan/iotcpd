@@ -128,11 +128,11 @@ void update_status(int *avail_array, int *count)
                 *count = *count + 1;
             }
             st.d_avail++;
-        } else if (d[i].status & S_BUSY) {
+        } else if (d[i].status == S_BUSY) {
             st.d_busy++;
-        } else if (d[i].status & S_SPAWNING) {
+        } else if (d[i].status == S_SPAWNING) {
             st.d_spawning++;
-        } else if (d[i].status & S_STARTING) {
+        } else if (d[i].status == S_STARTING) {
             st.d_starting++;
         }
     }

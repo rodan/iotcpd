@@ -3,7 +3,7 @@
 
 #include <inttypes.h>
 
-#define MAX_DAEMONS 32
+#define MAX_DAEMONS 64
 #define MSG_MAX 4096
 
 ///////////////////////////////

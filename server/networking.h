@@ -5,7 +5,7 @@
 
 struct epoll_event *events;
 
-void network_glue(void);
+int network_glue(void);
 void network_free(void);
 
 #endif
