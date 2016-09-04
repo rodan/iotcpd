@@ -84,14 +84,23 @@ int io_handler(const int fd)
         } else {
             total_read += count;
             buff_rx[count] = 0;
-            if (buff_rx[total_read - 1] == 0x0a) {
-                continue;
+            if ((total_read > 0) && (buff_rx[total_read - 1] == 0x0a)) {
+                break;
             }
+        }
+
+        if ( (MSG_MAX - total_read) < 2 ) {
+            st.queries_failed++;
+            s = write(fd, "ERR\n", 4);
+            close(fd);
+            fprintf(stderr, "input from squid longer than %d bytes\n", MSG_MAX);
+            return EXIT_FAILURE;
         }
     }
 
     buff_rx[total_read] = 0;
 
+    /*
     if (buff_rx[count - 1] != 0x0a) {
         st.queries_failed++;
         s = write(fd, "ERR\n", 4);
@@ -101,6 +110,7 @@ int io_handler(const int fd)
 
         return EXIT_FAILURE;
     }
+    */
 
 #ifdef CONFIG_VERBOSE
     /*
