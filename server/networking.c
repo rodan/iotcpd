@@ -74,28 +74,7 @@ int io_handler(const int fd)
     struct timespec start;
     struct sigaction sa;
 
-    /*
-       count = read(fd, buff_rx, (sizeof buff_rx) - 1);
-       if (count == -1) {
-       if (errno == EAGAIN) {
-       // If errno == EAGAIN, that means we have read all data
-       // we might end up here by mistake?
-       //st.queries_unknown++;
-       return EXIT_SUCCESS;
-       } else {
-       st.queries_failed++;
-       close(fd);
-       return EXIT_FAILURE;
-       }
-       } else if (count == 0) {
-       // end of file. the remote has closed the connection
-       st.queries_failed++;
-       close(fd);
-       return EXIT_FAILURE;
-       }
-     */
-
-    // do a non-peeked read only if string ends in \n
+    // do a an actual (non-PEEKed) read only if string ends in '0x0a'
     count = recv(fd, buff_rx, (sizeof buff_rx) - 1, MSG_PEEK | MSG_DONTWAIT);
     if (count == -1) {
         if ((errno == EAGAIN) || (errno == EWOULDBLOCK)) {
@@ -119,12 +98,12 @@ int io_handler(const int fd)
                 buff_rx[count] = 0;
                 st.queries_failed++;
                 s = write(fd, "ERR\n", 4);
-                fprintf(stderr, "message too long from squid on fd %d (%lu bytes)\n%s\n", fd, count, buff_rx);
+                fprintf(stderr, "message too long on fd %d (%lu bytes)\n%s\n", fd, count, buff_rx);
                 close(fd);
                 return EXIT_FAILURE;
             } else {
                 // we did not get a full packet, go back
-                fprintf(stderr, "incomplete input from squid on fd %d (%lu bytes)\n", fd, count);
+                //fprintf(stderr, "incomplete input on fd %d (%lu bytes)\n", fd, count);
                 return EXIT_SUCCESS;
             }
         } else {
@@ -153,7 +132,7 @@ int io_handler(const int fd)
         st.queries_failed++;
         s = write(fd, "ERR\n", 4);
         close(fd);
-        fprintf(stderr, "invalid input from squid (%lu bytes)\n", count);
+        fprintf(stderr, "invalid input (%lu bytes)\n", count);
         //fprintf(stderr, "string was %lu bytes long:\n%s\n", count, buff_rx);
         return EXIT_FAILURE;
     }
@@ -161,9 +140,9 @@ int io_handler(const int fd)
     buff_rx[count] = 0;
 
     // debug
-    if (count > 1340) {
-        fprintf(stderr, "string was %lu bytes long:\n%s\n", count, buff_rx);
-    }
+    //if (count > 1340) {
+    //    fprintf(stderr, "string was %lu bytes long:\n%s\n", count, buff_rx);
+    //}
 
 #ifdef CONFIG_VERBOSE
     /*
