@@ -115,9 +115,18 @@ int io_handler(const int fd)
         return EXIT_FAILURE;
     } else {
         if (buff_rx[count - 1] != 0x0a) {
-            // we did not get a full packet, go back
-            fprintf(stderr, "incomplete input from squid on fd %d (%lu bytes)\n", fd, count);
-            return EXIT_SUCCESS;
+            if (count == MSG_MAX - 1) {
+                buff_rx[count] = 0;
+                st.queries_failed++;
+                s = write(fd, "ERR\n", 4);
+                fprintf(stderr, "message too long from squid on fd %d (%lu bytes)\n%s\n", fd, count, buff_rx);
+                close(fd);
+                return EXIT_FAILURE;
+            } else {
+                // we did not get a full packet, go back
+                fprintf(stderr, "incomplete input from squid on fd %d (%lu bytes)\n", fd, count);
+                return EXIT_SUCCESS;
+            }
         } else {
             count = recv(fd, buff_rx, (sizeof buff_rx) - 1, MSG_DONTWAIT);
             if (count == -1) {
@@ -149,12 +158,13 @@ int io_handler(const int fd)
         return EXIT_FAILURE;
     }
 
+    buff_rx[count] = 0;
+
     // debug
     if (count > 1340) {
         fprintf(stderr, "string was %lu bytes long:\n%s\n", count, buff_rx);
     }
 
-    buff_rx[count] = 0;
 #ifdef CONFIG_VERBOSE
     /*
        // write the buffer to standard output
