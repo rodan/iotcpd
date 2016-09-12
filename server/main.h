@@ -33,6 +33,7 @@ typedef struct {
     unsigned long queries_delayed;
     unsigned long queries_timeout;
     unsigned long queries_failed;
+    unsigned long queries_unknown;
     unsigned long queries_0_100;
     unsigned long queries_100_250;
     unsigned long queries_250_500;

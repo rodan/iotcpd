@@ -46,14 +46,14 @@ int make_socket_non_blocking(int sfd)
 
     flags = fcntl(sfd, F_GETFL, 0);
     if (flags == -1) {
-        perror("fcntl failed");
+        perror("fcntl(sfd, F_GETFL) failed");
         return EXIT_FAILURE;
     }
 
     flags |= O_NONBLOCK;
     s = fcntl(sfd, F_SETFL, flags);
     if (s == -1) {
-        perror("fcntl failed");
+        perror("fcntl(sfd, F_SETFL) failed");
         return EXIT_FAILURE;
     }
 
@@ -64,8 +64,7 @@ int io_handler(const int fd)
 {
     char buff_rx[MSG_MAX], buff_tx[MSG_MAX];
     ssize_t bytes;
-    ssize_t count;
-    ssize_t total_read = 0;
+    ssize_t count = 0;
     int s;
     pid_t pid;
     int sel_daemon;
@@ -75,43 +74,87 @@ int io_handler(const int fd)
     struct timespec start;
     struct sigaction sa;
 
-    while (1) {
-        count = read(fd, buff_rx, MSG_MAX - total_read - 1);
-        if (count == -1) {
-            st.queries_failed++;
-            close(fd);
-            return EXIT_FAILURE;
-        } else {
-            total_read += count;
-            buff_rx[count] = 0;
-            if ((total_read > 0) && (buff_rx[total_read - 1] == 0x0a)) {
-                break;
-            }
-        }
+    /*
+       count = read(fd, buff_rx, (sizeof buff_rx) - 1);
+       if (count == -1) {
+       if (errno == EAGAIN) {
+       // If errno == EAGAIN, that means we have read all data
+       // we might end up here by mistake?
+       //st.queries_unknown++;
+       return EXIT_SUCCESS;
+       } else {
+       st.queries_failed++;
+       close(fd);
+       return EXIT_FAILURE;
+       }
+       } else if (count == 0) {
+       // end of file. the remote has closed the connection
+       st.queries_failed++;
+       close(fd);
+       return EXIT_FAILURE;
+       }
+     */
 
-        if ( (MSG_MAX - total_read) < 2 ) {
+    // do a non-peeked read only if string ends in \n
+    count = recv(fd, buff_rx, (sizeof buff_rx) - 1, MSG_PEEK | MSG_DONTWAIT);
+    if (count == -1) {
+        if ((errno == EAGAIN) || (errno == EWOULDBLOCK)) {
+            // If errno == EAGAIN, that means we have read all data
+            // we might end up here by mistake?
+            //st.queries_unknown++;
+            return EXIT_SUCCESS;
+        } else {
             st.queries_failed++;
-            s = write(fd, "ERR\n", 4);
             close(fd);
-            fprintf(stderr, "input from squid longer than %d bytes\n", MSG_MAX);
             return EXIT_FAILURE;
+        }
+    } else if (count == 0) {
+        // end of file. the remote has closed the connection
+        st.queries_failed++;
+        close(fd);
+        return EXIT_FAILURE;
+    } else {
+        if (buff_rx[count - 1] != 0x0a) {
+            // we did not get a full packet, go back
+            fprintf(stderr, "incomplete input from squid on fd %d (%lu bytes)\n", fd, count);
+            return EXIT_SUCCESS;
+        } else {
+            count = recv(fd, buff_rx, (sizeof buff_rx) - 1, MSG_DONTWAIT);
+            if (count == -1) {
+                if (errno == EAGAIN) {
+                    // If errno == EAGAIN, that means we have read all data
+                    // we might end up here by mistake?
+                    st.queries_unknown++;
+                    return EXIT_SUCCESS;
+                } else {
+                    st.queries_failed++;
+                    close(fd);
+                    return EXIT_FAILURE;
+                }
+            } else if (count == 0) {
+                // end of file. the remote has closed the connection
+                st.queries_failed++;
+                close(fd);
+                return EXIT_FAILURE;
+            }
         }
     }
 
-    buff_rx[total_read] = 0;
-
-    /*
     if (buff_rx[count - 1] != 0x0a) {
         st.queries_failed++;
         s = write(fd, "ERR\n", 4);
         close(fd);
-        fprintf(stderr, "invalid input from squid\n");
-        fprintf(stderr, "string was %lu bytes long:\n%s\n", count, buff_rx);
-
+        fprintf(stderr, "invalid input from squid (%lu bytes)\n", count);
+        //fprintf(stderr, "string was %lu bytes long:\n%s\n", count, buff_rx);
         return EXIT_FAILURE;
     }
-    */
 
+    // debug
+    if (count > 1340) {
+        fprintf(stderr, "string was %lu bytes long:\n%s\n", count, buff_rx);
+    }
+
+    buff_rx[count] = 0;
 #ifdef CONFIG_VERBOSE
     /*
        // write the buffer to standard output
@@ -155,15 +198,14 @@ int io_handler(const int fd)
             update_status(&avail_daemon[0], &j);
         }
     }
-
     //make sure j will end up non-zero in the division below
     if (j == 0) {
         st.queries_failed++;
         s = write(fd, "ERR\n", 4);
         close(fd);
         fprintf(stderr,
-                    "dropping connection (try 2). avail/busy/spawning/starting daemons: %d/%d/%d/%d\n",
-                    st.d_avail, st.d_busy, st.d_spawning, st.d_starting);
+                "dropping connection (try 2). avail/busy/spawning/starting daemons: %d/%d/%d/%d\n",
+                st.d_avail, st.d_busy, st.d_spawning, st.d_starting);
         return EXIT_FAILURE;
     }
 
@@ -209,17 +251,16 @@ int io_handler(const int fd)
         if (bytes == -1) {
             fprintf(stderr, "pipe write error '%s (%d)'\n", strerror(errno), errno);
             fprintf(stderr, "d[%d] - pid %d is killed due to pipe errors\n", sel_daemon,
-                                d[sel_daemon].daemon_pid);
+                    d[sel_daemon].daemon_pid);
             frag(&d[sel_daemon]);
             _exit(EXIT_FAILURE);
         }
-
         // get answer from the daemon
         bytes = read(d[sel_daemon].consumer_pipe_fd[PIPE_END_READ], buff_tx, MSG_MAX);
         if (bytes == -1) {
             fprintf(stderr, "pipe read error '%s (%d)'\n", strerror(errno), errno);
             fprintf(stderr, "d[%d] - pid %d is killed due to pipe errors\n", sel_daemon,
-                                d[sel_daemon].daemon_pid);
+                    d[sel_daemon].daemon_pid);
             frag(&d[sel_daemon]);
             _exit(EXIT_FAILURE);
         }
@@ -306,7 +347,7 @@ int network_glue(void)
     }
 
     event.data.fd = sfd;
-    event.events = EPOLLIN | EPOLLET;
+    event.events = EPOLLIN | EPOLLET;   // set edge-trigger
     s = epoll_ctl(efd, EPOLL_CTL_ADD, sfd, &event);
     if (s == -1) {
         perror("epoll_ctl(sfd) failed");

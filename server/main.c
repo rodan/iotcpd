@@ -143,6 +143,7 @@ void signal_handler(int sig, siginfo_t * si, void *context)
         fprintf(stdout, "queries delayed    %lu\n", st.queries_delayed);
         fprintf(stdout, "queries timeout    %lu\n", st.queries_timeout);
         fprintf(stdout, "queries failed     %lu\n", st.queries_failed);
+        fprintf(stdout, "queries unknown    %lu\n", st.queries_unknown);
         fprintf(stdout, "queries 0-100      %lu\n", st.queries_0_100);
         fprintf(stdout, "queries 100-250    %lu\n", st.queries_100_250);
         fprintf(stdout, "queries 250-500    %lu\n", st.queries_250_500);
