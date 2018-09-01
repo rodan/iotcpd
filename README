@@ -65,7 +65,7 @@ uptime   7916
  queries x-y represent a histogram of the replies based on the time their processing took (in miliseconds).
 
 AUTHORS
-    Petre Rodan <petre.rodan@subdimension.ro>
+    Petre Rodan <2b4eda@subdimension.ro>
     Cristian Sandu - pipe handling, a shoulder to cry on
     James White - patterns.sed used for converting adblock rules to squidguard expressions
 
