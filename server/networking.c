@@ -71,7 +71,7 @@ int io_handler(const int fd)
     int avail_daemon[MAX_DAEMONS];
     int j;
     int timer;
-    struct timespec start;
+    struct timespec start, delay;
     struct sigaction sa;
 
     // do a an actual (non-PEEKed) read only if string ends in '0x0a'
@@ -171,8 +171,10 @@ int io_handler(const int fd)
         st.queries_delayed++;
 
         timer = 0;
+        delay.tv_sec = 0;
+        delay.tv_nsec = 1000000;
         while (timer < 500) {
-            usleep(1000);
+            while (nanosleep(&delay, &delay));
             timer++;
             if (!all_busy) {
                 break;
@@ -245,7 +247,9 @@ int io_handler(const int fd)
         // "stay awhile and listen"
         // in case this child dies too soon the cleanup will not find the pid set by
         // the parent a few lines above
-        usleep(2000);
+        delay.tv_sec = 0;
+        delay.tv_nsec = 2000000;
+        while (nanosleep(&delay, &delay));
 
         // send the string to the daemon
         bytes = write(d[sel_daemon].producer_pipe_fd[PIPE_END_WRITE], buff_rx, strlen(buff_rx));
