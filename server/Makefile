@@ -125,5 +125,14 @@ clean: $(SUBDIRS)
 doc:
 	rm -rf doc/*
 	doxygen Doxyfile
-	
+
+cppcheck: $(PROJ)
+	@cppcheck --quiet --force --enable=warning --enable=performance --enable=information --enable=missingInclude --enable=performance --enable=portability -I ./ ./
+
+scan-build: clean
+	@scan-build make
+
+#valgrind: $(PROJ)
+#	@valgrind --leak-check=full ./$(PROJ) --num-daemons 8
+
 -include $(PROJ).dep

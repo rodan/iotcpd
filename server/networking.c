@@ -98,8 +98,11 @@ int io_handler(const int fd)
                 buff_rx[count] = 0;
                 st.queries_failed++;
                 s = write(fd, "ERR\n", 4);
-                fprintf(stderr, "message too long on fd %d (%lu bytes)\n%s\n", fd, count, buff_rx);
                 close(fd);
+                if (s == -1) {
+                    perror("write to fd has failed");
+                }
+                fprintf(stderr, "message too long on fd %d (%ld bytes)\n%s\n", fd, count, buff_rx);
                 return EXIT_FAILURE;
             } else {
                 // we did not get a full packet, go back
@@ -132,7 +135,10 @@ int io_handler(const int fd)
         st.queries_failed++;
         s = write(fd, "ERR\n", 4);
         close(fd);
-        fprintf(stderr, "invalid input (%lu bytes)\n", count);
+        if (s == -1) {
+            perror("write to fd has failed");
+        }
+        fprintf(stderr, "invalid input (%ld bytes)\n", count);
         //fprintf(stderr, "string was %lu bytes long:\n%s\n", count, buff_rx);
         return EXIT_FAILURE;
     }
@@ -178,8 +184,11 @@ int io_handler(const int fd)
             st.queries_failed++;
             s = write(fd, "ERR\n", 4);
             close(fd);
+            if (s == -1) {
+                perror("write to fd has failed");
+            }
             fprintf(stderr,
-                    "dropping connection. avail/busy/spawning/starting daemons: %d/%d/%d/%d\n",
+                    "dropping connection. avail/busy/spawning/starting daemons: %u/%u/%u/%u\n",
                     st.d_avail, st.d_busy, st.d_spawning, st.d_starting);
             return EXIT_FAILURE;
         } else {
@@ -192,8 +201,11 @@ int io_handler(const int fd)
         st.queries_failed++;
         s = write(fd, "ERR\n", 4);
         close(fd);
+        if (s == -1) {
+            perror("write to fd has failed");
+        }
         fprintf(stderr,
-                "dropping connection (try 2). avail/busy/spawning/starting daemons: %d/%d/%d/%d\n",
+                "dropping connection (try 2). avail/busy/spawning/starting daemons: %u/%u/%u/%u\n",
                 st.d_avail, st.d_busy, st.d_spawning, st.d_starting);
         return EXIT_FAILURE;
     }
@@ -263,7 +275,7 @@ int io_handler(const int fd)
             _exit(EXIT_FAILURE);
         }
 #ifdef CONFIG_VERBOSE
-        printf("d[%d] sent %lub to fd %d. %d/%d busy\n", sel_daemon, bytes, fd, st.d_busy,
+        printf("d[%d] sent %ldb to fd %d. %u/%d busy\n", sel_daemon, bytes, fd, st.d_busy,
                num_daemons);
 #endif
         _exit(EXIT_SUCCESS);

@@ -58,7 +58,6 @@ void signal_handler(int sig, siginfo_t * si, void *context)
     int status;
     pid_t pid;
     int i;
-    int found;
     sigset_t x;
     struct timespec now, diff;
     long long ldiff;
@@ -70,7 +69,6 @@ void signal_handler(int sig, siginfo_t * si, void *context)
 
         //if (si->si_code == CLD_EXITED || si->si_code == CLD_KILLED) {
             while (1) {
-                found = 0;
                 pid = waitpid(-1, &status, WNOHANG);
                 if (pid > 0) {
 #ifdef CONFIG_VERBOSE
@@ -78,7 +76,6 @@ void signal_handler(int sig, siginfo_t * si, void *context)
 #endif
                     for (i = 0; i < num_daemons; i++) {
                         if (d[i].client_pid == pid) {
-                            found = 1;
                             // close connection with client
                             close(d[i].client_fd);
                             clock_gettime(CLOCK_MONOTONIC_RAW, &now);
@@ -98,7 +95,7 @@ void signal_handler(int sig, siginfo_t * si, void *context)
                                 st.queries_1000++;
                             }
 #ifdef CONFIG_VERBOSE
-                            printf("d[%d] pid %d exited after %lu ms, fd %d closed\n", i, pid,
+                            printf("d[%d] pid %d exited after %lld ms, fd %d closed\n", i, pid,
                                    ldiff, d[i].client_fd);
 #endif
                             d[i].client_fd = -1;
@@ -110,15 +107,10 @@ void signal_handler(int sig, siginfo_t * si, void *context)
                             d[i].start.tv_sec = 0;
                             d[i].start.tv_nsec = 0;
                         } else if (d[i].daemon_pid == pid) {
-                            found = 1;
                             fprintf(stderr, "daemon d[%d] has died\n", i);
                             d[i].daemon_pid = -1;
                             frag(&d[i]);
                         }
-                    }
-                    if (!found) {
-                        //fprintf(stderr, "warning, unknown child %d\n", pid);
-                        found = 1;
                     }
                 } else {
                     // =  0 if nothing else left to reap
@@ -151,10 +143,10 @@ void signal_handler(int sig, siginfo_t * si, void *context)
         fprintf(stdout, "queries 750-1000   %lu\n", st.queries_750_1000);
         fprintf(stdout, "queries 1000-      %lu\n", st.queries_1000);
         fprintf(stdout, "daemon spawns      %lu\n", st.daemon_spawns);
-        fprintf(stdout, "daemon S_AVAILABLE %d\n", st.d_avail);
-        fprintf(stdout, "daemon S_BUSY      %d\n", st.d_busy);
-        fprintf(stdout, "daemon S_SPAWNING  %d\n", st.d_spawning);
-        fprintf(stdout, "daemon S_STARTING  %d\n", st.d_starting);
+        fprintf(stdout, "daemon S_AVAILABLE %u\n", st.d_avail);
+        fprintf(stdout, "daemon S_BUSY      %u\n", st.d_busy);
+        fprintf(stdout, "daemon S_SPAWNING  %u\n", st.d_spawning);
+        fprintf(stdout, "daemon S_STARTING  %u\n", st.d_starting);
         fprintf(stdout, "uptime   %lu\n", time(NULL) - st.started);
         fprintf(stdout, "%s\n", v_comm);
         fprintf(stdout, "v_date %s\n", v_date);
@@ -311,7 +303,7 @@ int main(int argc, char **argv)
 
     daemon_array_container = strdup(daemon_str);
     p = strtok(daemon_array_container, " ");
-    daemon_array = (char **)malloc(strlen(daemon_str) * sizeof(char));
+    daemon_array = (char **)malloc(strlen(daemon_str));
     while (p) {
         daemon_array[elem] = p;
         p = strtok(NULL, " ");
