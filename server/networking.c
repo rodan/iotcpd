@@ -174,7 +174,7 @@ int io_handler(const int fd)
         delay.tv_sec = 0;
         delay.tv_nsec = 1000000;
         while (timer < 500) {
-            while (clock_nanosleep(CLOCK_MONOTONIC, 0, &delay, &delay)) {;}
+            while (clock_nanosleep(CLOCK_MONOTONIC, 0, &delay, &delay) != 0) {;}
             timer++;
             if (!all_busy) {
                 break;
@@ -249,7 +249,7 @@ int io_handler(const int fd)
         // the parent a few lines above
         delay.tv_sec = 0;
         delay.tv_nsec = 2000000;
-        while (clock_nanosleep(CLOCK_MONOTONIC, 0, &delay, &delay)) {;}
+        while (clock_nanosleep(CLOCK_MONOTONIC, 0, &delay, &delay) != 0) {;}
 
         // send the string to the daemon
         bytes = write(d[sel_daemon].producer_pipe_fd[PIPE_END_WRITE], buff_rx, strlen(buff_rx));
@@ -270,7 +270,7 @@ int io_handler(const int fd)
             _exit(EXIT_FAILURE);
         }
 
-        buff_tx[bytes] = '\0';
+        buff_tx[bytes] = 0;
 
         // write the buffer to remote fd
         s = write(fd, buff_tx, bytes);
