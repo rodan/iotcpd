@@ -5,5 +5,6 @@
 //#define CONFIG_DEBUG
 //#define CONFIG_VERBOSE
 
+#define _TIME_BITS 64
 
 #endif
