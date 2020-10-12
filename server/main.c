@@ -284,6 +284,7 @@ int main(int argc, char **argv)
     char *p;
     int elem = 0;
     struct sigaction sa;
+    struct timespec ts;
 
     setvbuf(stdout, NULL, _IOLBF, 0);
     memset(&st, 0, sizeof(st));
@@ -321,7 +322,8 @@ int main(int argc, char **argv)
         d[i].start.tv_nsec = 0;
     }
 
-    srand(time(NULL));
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    srand(ts.tv_nsec);
 
     alarm(alarm_interval);
 
