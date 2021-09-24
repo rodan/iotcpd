@@ -6,25 +6,31 @@
 #define MAX_DAEMONS 64
 #define MSG_MAX 4096
 
+#ifdef MAIN_LEVEL
+    #define MAIN_EXPORT
+#else
+    #define MAIN_EXPORT extern 
+#endif
+
 ///////////////////////////////
 // default values that can be changed via 
 // command line arguments
 //
 
-int debug;
-int num_daemons;
-int port;
-int busy_timeout;
-int alarm_interval;
-char *ip4;
-char *ip6;
-char *daemon_str;
-char **daemon_array;
+MAIN_EXPORT int debug;
+MAIN_EXPORT int num_daemons;
+MAIN_EXPORT int port;
+MAIN_EXPORT int busy_timeout;
+MAIN_EXPORT int alarm_interval;
+MAIN_EXPORT char *ip4;
+MAIN_EXPORT char *ip6;
+MAIN_EXPORT char *daemon_str;
+MAIN_EXPORT char **daemon_array;
 
 ///////////////////////////////
 
-volatile sig_atomic_t all_busy;
-char *daemon_array_container;
+MAIN_EXPORT volatile sig_atomic_t all_busy;
+MAIN_EXPORT char *daemon_array_container;
 
 typedef struct {
     unsigned long daemon_spawns;
@@ -47,6 +53,6 @@ typedef struct {
     time_t started;
 } status_t;
 
-status_t st;
+MAIN_EXPORT status_t st;
 
 #endif

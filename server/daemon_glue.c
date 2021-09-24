@@ -8,6 +8,8 @@
 #include <errno.h>
 
 #include "main.h"
+
+#define DAEMON_LEVEL
 #include "daemon_glue.h"
 
 void *spawn(void *param)

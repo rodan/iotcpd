@@ -11,6 +11,8 @@
 #include <time.h>
 
 #include "config.h"
+
+#define MAIN_LEVEL
 #include "main.h"
 #include "networking.h"
 #include "daemon_glue.h"

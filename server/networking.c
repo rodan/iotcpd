@@ -19,6 +19,8 @@
 #include "config.h"
 #include "main.h"
 #include "daemon_glue.h"
+
+#define NET_LEVEL
 #include "networking.h"
 
 char *get_ip_str(const struct sockaddr *sa, char *dst, const size_t maxlen)

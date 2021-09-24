@@ -133,6 +133,6 @@ scan-build: clean
 	@scan-build make
 
 valgrind: $(PROJ)
-	@valgrind --trace-children=no --child-silent-after-fork=yes --leak-check=full --show-leak-kinds=all --num-daemons 8 
+	@valgrind --trace-children=no --child-silent-after-fork=yes --leak-check=full --show-leak-kinds=all ./$(PROJ) --num-daemons 8 
 
 -include $(PROJ).dep

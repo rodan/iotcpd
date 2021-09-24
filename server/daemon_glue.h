@@ -8,6 +8,12 @@
 #define     S_SPAWNING      0x04
 #define     S_STARTING      0x08
 
+#ifdef DAEMON_LEVEL
+    #define DAEMON_EXPORT
+#else
+    #define DAEMON_EXPORT extern 
+#endif
+
 typedef enum _PIPE_END {
     PIPE_END_READ = 0,
     PIPE_END_WRITE = 1
@@ -23,7 +29,7 @@ typedef struct {
     struct timespec start;
 } daemon_t;
 
-daemon_t *d;
+DAEMON_EXPORT daemon_t *d;
 
 void *spawn(void *param);
 void frag(void *param);
