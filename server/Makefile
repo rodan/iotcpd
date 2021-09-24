@@ -89,9 +89,9 @@ $(OBJS): $(PROJ).cflags
 $(PROJ): $(OBJS)
 	@echo -e "\n>> Building $@ as target $(TARGET)"
 	@$(CC) $(CFLAGS) $(LDFLAGS) $(INCLUDES) -o $@ $+ && size $@ 
-ifeq ($(DEBUG),)
-	@strip $@
-endif
+#ifeq ($(DEBUG),)
+#	@strip $@
+#endif
 
 modinit.o: modinit.c
 	@echo "CC $<"
