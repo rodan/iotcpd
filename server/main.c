@@ -19,9 +19,10 @@
 #include "helpers.h"
 #include "version.h"
 
-// strings that can be grep-ed in the compiled binary
-const char v_comm[] = COMMIT;
-const char v_date[] = V_DATE;
+void show_version()
+{
+    fprintf(stdout, "iotcpd v%d.%db%d\n", VER_MAJOR, VER_MINOR, BUILD);
+}
 
 void show_help()
 {
@@ -48,11 +49,7 @@ void show_help()
             "\t\ttime interval in seconds between two consecutive ALARM interrupts - (default '%d')\n\n"
             "Example:\n"
             "\tiotcpd --num-daemons 8 --daemon \"squidGuard -c sg/adblock.conf\" \\\n"
-            "\t\t--ipv4 10.20.30.40 --port 1234\n"
-            "Version:\n"
-            "\t\t%s\n"
-            "\t\t%s\n",
-            daemon_str, ip4, ip6, port, num_daemons, busy_timeout, alarm_interval, v_comm, v_date);
+            "\t\t--ipv4 10.20.30.40 --port 1234\n", daemon_str, ip4, ip6, port, num_daemons, busy_timeout, alarm_interval);
 }
 
 void signal_handler(int sig, siginfo_t * si, void *context)
@@ -150,8 +147,7 @@ void signal_handler(int sig, siginfo_t * si, void *context)
         fprintf(stdout, "daemon S_SPAWNING  %u\n", st.d_spawning);
         fprintf(stdout, "daemon S_STARTING  %u\n", st.d_starting);
         fprintf(stdout, "uptime   %lu\n", time(NULL) - st.started);
-        fprintf(stdout, "%s\n", v_comm);
-        fprintf(stdout, "v_date %s\n", v_date);
+        fprintf(stdout, "version  %d.%db%d\n", VER_MAJOR, VER_MINOR, BUILD);
         fprintf(stdout, " --- statistics ---- 8< -------\n");
     } else if (sig == SIGUSR2) {
         fprintf(stdout, " --- internal regs - 8< -------\n");
@@ -199,9 +195,10 @@ void signal_handler(int sig, siginfo_t * si, void *context)
 
 void parse_options(int argc, char **argv)
 {
-    static const char short_options[] = "hd:i:I:p:n:b:a:";
+    static const char short_options[] = "hvd:i:I:p:n:b:a:";
     static const struct option long_options[] = {
         {.name = "help",.val = 'h'},
+        {.name = "version",.val = 'v'},
         {.name = "daemon",.has_arg = 1,.val = 'd'},
         {.name = "ipv4",.has_arg = 1,.val = 'i'},
         {.name = "ipv6",.has_arg = 1,.val = 'I'},
@@ -232,6 +229,10 @@ void parse_options(int argc, char **argv)
         switch (option) {
         case 'h':
             show_help();
+            exit(EXIT_SUCCESS);
+            break;
+        case 'v':
+            show_version();
             exit(EXIT_SUCCESS);
             break;
         case 'd':
@@ -289,7 +290,8 @@ int main(int argc, char **argv)
     struct timespec ts;
 
     setvbuf(stdout, NULL, _IOLBF, 0);
-    memset(&st, 0, sizeof(st));
+    memset(&st, 0, sizeof(status_t));
+    memset(&sa, 0, sizeof(struct sigaction));
 
     sa.sa_flags = SA_SIGINFO;
     sa.sa_sigaction = signal_handler;
@@ -306,7 +308,7 @@ int main(int argc, char **argv)
 
     daemon_array_container = strdup(daemon_str);
     p = strtok(daemon_array_container, " ");
-    daemon_array = (char **)malloc(strlen(daemon_str));
+    daemon_array = (char **)malloc(strlen(daemon_str) + 1);
     while (p) {
         daemon_array[elem] = p;
         p = strtok(NULL, " ");

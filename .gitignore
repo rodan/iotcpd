@@ -1,0 +1,16 @@
+iotcpd
+iotcpd.txt
+iotcpd.dep
+iotcpd.cflags
+*.[oa]
+*.pyc
+*.*~
+*.s
+*.swp
+*.?#?
+.secrets*
+*.pyc
+cov-int
+output.map
+tags
+docs

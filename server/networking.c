@@ -3,6 +3,7 @@
 #include <sys/socket.h>
 #include <fcntl.h>
 #include <arpa/inet.h>
+#include <sys/random.h>
 
 #include <unistd.h>
 #include <string.h>
@@ -75,6 +76,9 @@ int io_handler(const int fd)
     int timer;
     struct timespec start, delay;
     struct sigaction sa;
+    uint16_t rand;
+
+    memset(&sa, 0, sizeof(struct sigaction));
 
     // do a an actual (non-PEEKed) read only if string ends in '0x0a'
     count = recv(fd, buff_rx, (sizeof buff_rx) - 1, MSG_PEEK | MSG_DONTWAIT);
@@ -214,7 +218,11 @@ int io_handler(const int fd)
         return EXIT_FAILURE;
     }
 
-    sel_daemon = avail_daemon[rand() % j];
+    while (getrandom(&rand, 2, 0) < 1) {
+        // retry
+    }
+
+    sel_daemon = avail_daemon[rand % j];
     d[sel_daemon].status = S_BUSY;
     d[sel_daemon].client_fd = fd;
     d[sel_daemon].start.tv_sec = start.tv_sec;
@@ -263,7 +271,7 @@ int io_handler(const int fd)
             _exit(EXIT_FAILURE);
         }
         // get answer from the daemon
-        bytes = read(d[sel_daemon].consumer_pipe_fd[PIPE_END_READ], buff_tx, MSG_MAX);
+        bytes = read(d[sel_daemon].consumer_pipe_fd[PIPE_END_READ], buff_tx, MSG_MAX-1);
         if (bytes == -1) {
             fprintf(stderr, "pipe read error '%s (%d)'\n", strerror(errno), errno);
             fprintf(stderr, "d[%d] - pid %d is killed due to pipe errors\n", sel_daemon,
@@ -300,6 +308,10 @@ int network_glue(void)
     struct epoll_event event;
     socklen_t len;
     int optval;
+
+    memset(&s4, 0, sizeof(struct sockaddr_in));
+    memset(&s6, 0, sizeof(struct sockaddr_in6));
+    memset(&len, 0, sizeof(socklen_t));
 
     if (strlen(ip4) > 0) {
         s4.sin_family = AF_INET;
