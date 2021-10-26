@@ -12,7 +12,6 @@ a stdio to tcp redirector daemon
  source:       https://github.com/rodan/iotcpd
  author:       Petre Rodan <2b4eda@subdimension.ro>
  author:       Cristian Sandu - pipe handling, a shoulder to cry on
- author:       James White - patterns.sed used for converting adblock rules to squidguard expressions
  license:      BSD
 ```
 
@@ -21,6 +20,14 @@ a stdio to tcp redirector daemon
 iotcpd is a generic STDIO to TCP redirector daemon. it can start multiple identical non-networking enabled daemons that only interact via stdin/stdout and query them based on requests received via TCP. the request is sent to the stdin of one of the daemons that is available and the reply from its stdout is then sent to the requester via TCP. the connection is then torn down. basically an inetd/xinetd/tcpserver on crack.
 
 epoll API functions are used to handle incoming connections.
+
+***SYNOPSIS***
+
+```
+iotcpd  [-hv]  [-d,  --daemon  NAME ] [-i, --ipv4 IP ] [-I, --ipv6 IP ]
+  [-p, --port NUM ] [-n, --num-daemons NUM ] [-b,  --busy-timeout  NUM  ]
+  [-a, --alarm-interval NUM ]
+```
 
 ```
 example of how this fits in with having multiple squidguard daemons that can talk via TCP:
@@ -34,7 +41,8 @@ example of how this fits in with having multiple squidguard daemons that can tal
                                      ---- squidguard
 ```
 ```
- $ ./iotcpd --num-daemons 8 --daemon "squidGuard -c sg/adblock.conf" --ipv4 "10.20.30.40" --port "1234"
+ $ ./iotcpd --num-daemons 8 --daemon "squidGuard -c sg/adblock.conf" \
+ --ipv4 10.20.30.40 --port 1234
 ```
 
 ### Build requirements
@@ -82,6 +90,7 @@ the code itself is static-scanned by [llvm's scan-build](https://clang-analyzer.
 
 sending USR1 and USR2 signals will provide with detailed statistics on the innerworkings of the redirector service:
 
+```
  $ kill -USR1 `pidof iotcpd`
 
  --- statistics ---- >8 -------
@@ -103,6 +112,8 @@ daemon S_SPAWNING  0
 daemon S_STARTING  0
 uptime   7916
  --- statistics ---- 8< -------
+
+```
 
  queries x-y represent a histogram of the replies based on the time their processing took (in miliseconds).
 

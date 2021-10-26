@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html>
+<!-- This is an automatically generated file.  Do not edit.
+   Process this file with
+   groff -man -Tascii foo.1
+   -->
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <style>
+    table.head, table.foot { width: 100%; }
+    td.head-rtitle, td.foot-os { text-align: right; }
+    td.head-vol { text-align: center; }
+    .Nd, .Bf, .Op { display: inline; }
+    .Pa, .Ad { font-style: italic; }
+    .Ms { font-weight: bold; }
+    .Bl-diag > dt { font-weight: bold; }
+    code.Nm, .Fl, .Cm, .Ic, code.In, .Fd, .Fn, .Cd { font-weight: bold;
+      font-family: inherit; }
+  </style>
+  <title>iotcpd(1)</title>
+</head>
+<body>
+<table class="head">
+  <tr>
+    <td class="head-ltitle">iotcpd(1)</td>
+    <td class="head-vol">General Commands Manual</td>
+    <td class="head-rtitle">iotcpd(1)</td>
+  </tr>
+</table>
+<div class="manual-text">
+<section class="Sh">
+<h1 class="Sh" id="NAME"><a class="permalink" href="#NAME">NAME</a></h1>
+<p class="Pp">iotcpd - a stdio to tcp redirector daemon</p>
+<p class="Pp"></p>
+</section>
+<section class="Sh">
+<h1 class="Sh" id="SYNOPSIS"><a class="permalink" href="#SYNOPSIS">SYNOPSIS</a></h1>
+<p class="Pp"><b>iotcpd [-hv] [-d, --daemon</b> <i>NAME</i> <b>] [-i, --ipv4</b>
+    <i>IP</i> <b>] [-I, --ipv6</b> <i>IP</i> <b>] [-p, --port</b> <i>NUM</i>
+    <b>] [-n, --num-daemons</b> <i>NUM</i> <b>] [-b, --busy-timeout</b>
+    <i>NUM</i> <b>] [-a, --alarm-interval</b> <i>NUM</i> <b>]</b></p>
+</section>
+<section class="Sh">
+<h1 class="Sh" id="DESCRIPTION"><a class="permalink" href="#DESCRIPTION">DESCRIPTION</a></h1>
+<p class="Pp"><b>iotcpd</b> is a daemon that binds to a TCP socket and
+    distributes client requests to a number of identical applications it
+    controls. these applications are supposed to interact only by reading stdin
+    and providing an output on stdout.</p>
+<p class="Pp">non-responding applications are automatically re-spawned.</p>
+<p class="Pp"></p>
+</section>
+<section class="Sh">
+<h1 class="Sh" id="SIGNALS"><a class="permalink" href="#SIGNALS">SIGNALS</a></h1>
+<p class="Pp">sending a USR1 signal to a running 'iotcpd' process makes it print
+    timing statistics to standard output.</p>
+<p class="Pp">sending a USR2 signal provides detailed debug information for
+    every daemon unde iotcpd's control.</p>
+<p class="Pp">an internal ALRM timer respawns daemons that do not provide a
+    reply in a given number of seconds.</p>
+<p class="Pp"></p>
+</section>
+<section class="Sh">
+<h1 class="Sh" id="OPTIONS"><a class="permalink" href="#OPTIONS">OPTIONS</a></h1>
+<dl class="Bl-tag">
+  <dt id="h"><a class="permalink" href="#h">-h</a></dt>
+  <dd>Display short help message and exit</dd>
+  <dt id="v"><a class="permalink" href="#v">-v</a></dt>
+  <dd>Display application version</dd>
+  <dt id="d,"><a class="permalink" href="#d,">-d, --daemon='CMD'</a></dt>
+  <dd>full command line to spawn. this process is expected to read commands from
+      stdin and provide a reply on stdout. with the help of iotcpd the
+      interaction will be performed via TCP.
+    <p class="Pp">default value is <b>squidGuard -c sg/adblock.conf</b></p>
+    <p class="Pp"></p>
+  </dd>
+  <dt>-4, --ipv4=IP</dt>
+  <dd>IPv4 address to bind to.
+    <p class="Pp">default value is <b>127.0.0.1</b></p>
+    <p class="Pp"></p>
+  </dd>
+  <dt>-6, --ipv6=IP</dt>
+  <dd>IPv6 address to bind to. If this option is requested then the daemon will
+      not bind to any IPv4 ip.
+    <p class="Pp">default value is <b>''</b></p>
+    <p class="Pp"></p>
+  </dd>
+  <dt id="p,"><a class="permalink" href="#p,">-p, --port=NUM</a></dt>
+  <dd>tcp port to bind to.
+    <p class="Pp">default value is <b>41300</b></p>
+    <p class="Pp"></p>
+  </dd>
+  <dt id="n,"><a class="permalink" href="#n,">-n, --num-daemons=NUM</a></dt>
+  <dd>number of daemons to be spawned
+    <p class="Pp">default value is <b>4</b></p>
+    <p class="Pp"></p>
+  </dd>
+  <dt id="b,"><a class="permalink" href="#b,">-b, --busy-timeout=NUM</a></dt>
+  <dd>number of seconds after which an unresponsive daemon is restarted
+    <p class="Pp">default value is <b>15</b></p>
+    <p class="Pp"></p>
+  </dd>
+  <dt id="a,"><a class="permalink" href="#a,">-a, --alarm-interval=NUM</a></dt>
+  <dd>time interval in seconds between two consecutive ALARM interrupts
+    <p class="Pp">default value is <b>2</b></p>
+    <p class="Pp"></p>
+    <p class="Pp"></p>
+  </dd>
+</dl>
+</section>
+<section class="Sh">
+<h1 class="Sh" id="DIAGNOSTICS"><a class="permalink" href="#DIAGNOSTICS">DIAGNOSTICS</a></h1>
+<p class="Pp">errors are generated on stderr if any of the system calls returns
+    a failure.</p>
+<p class="Pp"></p>
+</section>
+<section class="Sh">
+<h1 class="Sh" id="BUGS"><a class="permalink" href="#BUGS">BUGS</a></h1>
+<p class="Pp">please report any bugs via the github tracker located at
+    &lt;https://github.com/rodan/iotcpd/issues&gt;</p>
+</section>
+<section class="Sh">
+<h1 class="Sh" id="LICENSE"><a class="permalink" href="#LICENSE">LICENSE</a></h1>
+<p class="Pp"><b>sigdup</b> is covered by the BSD License.</p>
+</section>
+<section class="Sh">
+<h1 class="Sh" id="AUTHOR"><a class="permalink" href="#AUTHOR">AUTHOR</a></h1>
+<p class="Pp">Petre Rodan &lt;2b4eda@subdimension.ro&gt;</p>
+</section>
+</div>
+<table class="foot">
+  <tr>
+    <td class="foot-date">NOVEMBER 2021</td>
+    <td class="foot-os"></td>
+  </tr>
+</table>
+</body>
+</html>

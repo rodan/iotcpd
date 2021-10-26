@@ -1,0 +1,94 @@
+.\" Process this file with
+.\" groff -man -Tascii foo.1
+.\"
+.TH iotcpd 1 "NOVEMBER 2021"
+.SH NAME
+iotcpd \- a stdio to tcp redirector daemon
+
+.SH SYNOPSIS
+.B iotcpd [-hv] [-d, --daemon
+.I NAME
+.B ] [-i, --ipv4
+.I IP
+.B ] [-I, --ipv6
+.I IP
+.B ] [-p, --port
+.I NUM
+.B ] [-n, --num-daemons
+.I NUM
+.B ] [-b, --busy-timeout
+.I NUM
+.B ] [-a, --alarm-interval
+.I NUM
+.B ]
+.SH DESCRIPTION
+.B iotcpd
+is a daemon that binds to a TCP socket and distributes client requests to a number of identical applications it controls. these applications are supposed to interact only by reading stdin and providing an output on stdout.
+
+non-responding applications are automatically re-spawned.
+
+.SH SIGNALS
+sending a USR1 signal to a running 'iotcpd' process makes it print timing statistics to standard output.
+
+sending a USR2 signal provides detailed debug information for every daemon unde iotcpd's control.
+
+an internal ALRM timer respawns daemons that do not provide a reply in a given number of seconds.
+
+.SH OPTIONS
+.IP -h
+Display short help message and exit
+.IP -v
+Display application version
+.IP "-d, --daemon='CMD'"
+full command line to spawn. this process is expected to read commands from stdin and provide a reply on stdout. with the help of iotcpd the interaction will be performed via TCP.
+
+default value is 
+.B squidGuard -c sg/adblock.conf
+
+.IP "-4, --ipv4=IP"
+IPv4 address to bind to.
+
+default value is 
+.B 127.0.0.1
+
+.IP "-6, --ipv6=IP"
+IPv6 address to bind to. If this option is requested then the daemon will not bind to any IPv4 ip.
+
+default value is 
+.B ''
+
+.IP "-p, --port=NUM"
+tcp port to bind to.
+
+default value is 
+.B 41300
+
+.IP "-n, --num-daemons=NUM"
+number of daemons to be spawned
+
+default value is 
+.B 4
+
+.IP "-b, --busy-timeout=NUM"
+number of seconds after which an unresponsive daemon is restarted
+
+default value is 
+.B 15
+
+.IP "-a, --alarm-interval=NUM"
+time interval in seconds between two consecutive ALARM interrupts
+
+default value is 
+.B 2
+
+
+.SH DIAGNOSTICS
+errors are generated on stderr if any of the system calls returns a failure.
+ 
+.SH BUGS
+please report any bugs via the github tracker located at <https://github.com/rodan/iotcpd/issues>
+.SH "LICENSE"
+.B sigdup
+is covered by the BSD License.
+.SH AUTHOR
+Petre Rodan <2b4eda@subdimension.ro>
